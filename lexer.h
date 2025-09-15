@@ -1,0 +1,30 @@
+#ifndef LEXER_H
+#define LEXER_H
+
+typedef enum {
+    TOK_NUM,       // numbers
+    TOK_PLUS,      // +
+    TOK_MINUS,     // -
+    TOK_MUL,       // *
+    TOK_DIV,       // /
+    TOK_POW,       // ^
+    TOK_LPAREN,    // (
+    TOK_RPAREN,    // )
+    TOK_IDENT,// variable or function names
+    TOK_COMMA,     // ,
+    TOK_ASSIGN,    // =
+    TOK_EOF        // end of input
+} TokenType;
+
+typedef struct {
+    TokenType type;
+    double value;
+    char* name;
+} Token;
+
+Token lex(const char* input, int* pos); 
+char* type_to_string(TokenType type);
+void eval_line(Token* tokens, int token_count);
+Token* generate_tokens(const char* input, int* out_count);
+void print_token(Token token);
+#endif

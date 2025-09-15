@@ -1,0 +1,7 @@
+parse -> expr | assign
+assign -> IDENT ASSIGN assign | expr
+expr -> term ((PLUS | MINUS) term)*
+term -> factor ((MUL | DIV) factor)*
+factor -> base (POW factor)?
+base -> NUM | IDENT | LPARAN expr RPARAN | func
+func -> IDENT LPARAN (expr (COMMA expr)*)? RPARAN
