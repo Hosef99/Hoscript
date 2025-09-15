@@ -32,7 +32,7 @@ typedef struct ASTNode {
         struct          // function
         {
             char* name;
-            struct ASTNode* args[10];
+            struct ASTNode** args;
             int arg_size;
         } func;
         

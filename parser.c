@@ -127,7 +127,7 @@ ASTNode* parse_base(Parser* parser)
     {
         if (parser->tokens[parser->pos+1].type == TOK_LPAREN) // second token LPAREN
         {
-            parse_func(parser);
+            return parse_func(parser);
         }
         else // identifier
         {
@@ -154,33 +154,43 @@ ASTNode* parse_base(Parser* parser)
 
 ASTNode* parse_func(Parser* parser)
 {
-    printf("enter func");
-    // grammar
+    printf("enter func\n");
     // func -> IDENT LPARAN (expr (COMMA expr)*)? RPARAN
+
     ASTNode* node = malloc(sizeof(ASTNode));
+    node->type = AST_FUNC;
     node->func.name = strdup(parser->current_token.name);
-    next_token(parser); // IDENT
-    next_token(parser); // LPARAN
-    
-    // expr
-    if (parser->current_token.type != TOK_RPAREN) // if not RPAREN, then its an expr
-    {
-        node->func.args[0] = parse_expr(parser);
-        node->func.arg_size = 1;
-        while (parser->current_token.type == TOK_COMMA)
-        {
-            // consume comma first, then parse expr
-            next_token(parser);
+    node->func.arg_size = 0;
+
+    next_token(parser); // consume IDENT
+
+    if (parser->current_token.type != TOK_LPAREN) {
+        fprintf(stderr, "Syntax error: expected '('\n");
+        exit(1);
+    }
+    next_token(parser); // consume '('
+
+    // arguments
+    if (parser->current_token.type != TOK_RPAREN) {
+        // allocate space for arguments (say max 16 for now)
+        node->func.args = malloc(16 * sizeof(ASTNode*));
+
+        node->func.args[node->func.arg_size++] = parse_expr(parser);
+        while (parser->current_token.type == TOK_COMMA) {
+            next_token(parser); // consume ','
             node->func.args[node->func.arg_size++] = parse_expr(parser);
         }
     }
-    // consume RPAREN
-    next_token(parser);
-    
-    node->type = AST_FUNC;
+
+    if (parser->current_token.type != TOK_RPAREN) {
+        fprintf(stderr, "Syntax error: expected ')'\n");
+        exit(1);
+    }
+    next_token(parser); // consume ')'
 
     return node;
 }
+
 
 void print_ast(ASTNode* node, int indent) {
     if (!node) return;
@@ -209,64 +219,8 @@ void print_ast(ASTNode* node, int indent) {
             {
                 print_ast(node->func.args[i], indent + 1);
             }
+            break;
         default:
             printf("UNKNOWN\n");
-    }
-}
-
-void print_ast_type(ASTNode* node)
-{
-    switch (node->type)
-    {
-    case AST_ASSIGN:
-        printf("ASSIGN\n");
-        break;
-    case AST_BINOP:
-        printf("BINOP\n");
-        break;
-    case AST_FUNC:
-        printf("FUNC\n");
-        break;
-    case AST_IDENT:
-        printf("IDENT\n");
-        break;
-    case AST_NUM:
-        printf("NUM\n");
-        break;
-    default:
-        printf("UNKNOWN\n");
-        break;
-    }
-}
-
-int main()
-{
-    char input[256];
-    int tok_count;
-
-    while (1)
-    {
-        printf("> ");
-        fgets(input, sizeof(input), stdin);
-        input[strcspn(input, "\n")] = '\0';
-        if (strcmp(input, "quit()") == 0)
-        {
-            printf("\n");
-            break;
-        }
-        Token* tokens = generate_tokens(input, &tok_count);
-        Parser parser = {tokens, tok_count, 0, tokens[0]};
-        ASTNode* root = parse(&parser);
-        if (parser.current_token.type != TOK_EOF) {
-            printf("Syntax error: extra tokens at end of input\n");
-        }
-        // print_token(parser.current_token);
-        // print_ast_type(root);
-        if (root->type == -1)
-        {
-            printf("NULL");
-        }
-        
-        print_ast(root, 0);
     }
 }
