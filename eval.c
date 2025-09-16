@@ -10,6 +10,18 @@
 
 #define VAR_MAX 100
 
+#define DEF_UNARY(name) \
+double builtin_##name(double *args, int n) { \
+    if (n != 1) { fprintf(stderr, #name " expects 1 arg\n"); return NAN; } \
+    return name(args[0]); \
+}
+
+#define DEF_BINARY(name) \
+double builtin_##name(double *args, int n) { \
+    if (n != 2) { fprintf(stderr, #name " expects 2 args\n"); return NAN; } \
+    return name(args[0], args[1]); \
+}
+
 typedef struct
 {
     char* name;
@@ -22,9 +34,64 @@ typedef struct
     int var_count;
 } Env;
 
+typedef double (*BuiltinFunc)(double *args, int arg_size);
+
+typedef struct
+{
+    const char* name;
+    BuiltinFunc func;
+    int arg_size;
+} BuiltinEntry;
+
+DEF_UNARY(sin)
+DEF_UNARY(cos)
+DEF_UNARY(tan)
+DEF_UNARY(asin)
+DEF_UNARY(acos)
+DEF_UNARY(atan)
+DEF_UNARY(sinh)
+DEF_UNARY(cosh)
+DEF_UNARY(tanh)
+DEF_UNARY(exp)
+DEF_UNARY(log)
+DEF_UNARY(log10)
+DEF_UNARY(abs)
+DEF_UNARY(floor)
+DEF_UNARY(ceil)
+DEF_UNARY(round)
+DEF_BINARY(fmod)
+DEF_UNARY(sqrt)
+DEF_BINARY(pow)
+
+BuiltinEntry builtins[] = {
+    {"sin",    builtin_sin,    1},
+    {"cos",    builtin_cos,    1},
+    {"tan",    builtin_tan,    1},
+    {"asin",   builtin_asin,   1},
+    {"acos",   builtin_acos,   1},
+    {"atan",   builtin_atan,   1},
+    {"sinh",   builtin_sinh,   1},
+    {"cosh",   builtin_cosh,   1},
+    {"tanh",   builtin_tanh,   1},
+    {"exp",    builtin_exp,    1},
+    {"log",    builtin_log,    1},
+    {"log10",  builtin_log10,  1},
+    {"abs",    builtin_abs,    1},
+    {"floor",  builtin_floor,  1},
+    {"ceil",   builtin_ceil,   1},
+    {"round",  builtin_round,  1},
+    {"fmod",   builtin_fmod,   2},
+    {"sqrt",   builtin_sqrt,   1},
+    {"pow",    builtin_pow,    2},
+    {NULL, NULL, 0} // sentinel
+};
+
+
+
 double eval(ASTNode* root, Env* env);
 double get_var(const char* name, Env* env);
 void set_var(const char* name, double value, Env* env);
+double eval_func(const char* name, double* args);
 
 double eval(ASTNode* node, Env* env)
 {
@@ -100,6 +167,11 @@ void set_var(const char* name, double value, Env* env)
     env->var[env->var_count].name = strdup(name); // need to free
     env->var[env->var_count].value = value;
     (env->var_count)++;
+}
+
+double eval_func(const char* name, double* args)
+{
+
 }
 
 int main()
