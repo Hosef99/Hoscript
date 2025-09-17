@@ -4,8 +4,6 @@
 #include <ctype.h>   // isdigit, isalpha, isspace
 #include <math.h>
 
-#include "lexer.h"
-#include "parser.h"
 #include "eval.h"
 
 #define VAR_MAX 100
@@ -43,6 +41,16 @@ typedef struct
     int arg_size;
 } BuiltinEntry;
 
+double eval(ASTNode* root, Env* env);
+double get_var(const char* name, Env* env);
+void set_var(const char* name, double value, Env* env);
+double eval_func(const char* name, double* args, int arg_size);
+
+double PI()
+{
+    return 3.14159265358979323846;
+}
+
 DEF_UNARY(sin)
 DEF_UNARY(cos)
 DEF_UNARY(tan)
@@ -64,39 +72,34 @@ DEF_UNARY(sqrt)
 DEF_BINARY(pow)
 
 BuiltinEntry builtins[] = {
-    {"sin",    builtin_sin,    1},
-    {"cos",    builtin_cos,    1},
-    {"tan",    builtin_tan,    1},
-    {"asin",   builtin_asin,   1},
-    {"acos",   builtin_acos,   1},
-    {"atan",   builtin_atan,   1},
-    {"sinh",   builtin_sinh,   1},
-    {"cosh",   builtin_cosh,   1},
-    {"tanh",   builtin_tanh,   1},
-    {"exp",    builtin_exp,    1},
-    {"log",    builtin_log,    1},
-    {"log10",  builtin_log10,  1},
-    {"abs",    builtin_abs,    1},
-    {"floor",  builtin_floor,  1},
-    {"ceil",   builtin_ceil,   1},
-    {"round",  builtin_round,  1},
-    {"fmod",   builtin_fmod,   2},
-    {"sqrt",   builtin_sqrt,   1},
-    {"pow",    builtin_pow,    2},
-    {NULL, NULL, 0} // sentinel
+    {"sin",     builtin_sin,    1},
+    {"cos",     builtin_cos,    1},
+    {"tan",     builtin_tan,    1},
+    {"asin",    builtin_asin,   1},
+    {"acos",    builtin_acos,   1},
+    {"atan",    builtin_atan,   1},
+    {"sinh",    builtin_sinh,   1},
+    {"cosh",    builtin_cosh,   1},
+    {"tanh",    builtin_tanh,   1},
+    {"exp",     builtin_exp,    1},
+    {"log",     builtin_log,    1},
+    {"log10",   builtin_log10,  1},
+    {"abs",     builtin_abs,    1},
+    {"floor",   builtin_floor,  1},
+    {"ceil",    builtin_ceil,   1},
+    {"round",   builtin_round,  1},
+    {"fmod",    builtin_fmod,   2},
+    {"sqrt",    builtin_sqrt,   1},
+    {"pow",     builtin_pow,    2},
+    {"pi",      PI, 0},
+    {NULL,      NULL, 0} // sentinel
 };
-
-
-
-double eval(ASTNode* root, Env* env);
-double get_var(const char* name, Env* env);
-void set_var(const char* name, double value, Env* env);
-double eval_func(const char* name, double* args);
 
 double eval(ASTNode* node, Env* env)
 {
     double a;
     double b;
+    double* args;
 
     switch (node->type)
     {
@@ -127,6 +130,14 @@ double eval(ASTNode* node, Env* env)
         }
     case AST_IDENT:
         return get_var(node->name, env);
+    case AST_FUNC:
+        args = malloc(sizeof(double) * node->func.arg_size);
+        for (int i = 0; i < node->func.arg_size; i++)
+        {
+            args[i] = eval(node->func.args[i], env);
+        }
+        
+        return eval_func(node->func.name, args, node->func.arg_size);
     default:
         return 0;
         break;
@@ -169,9 +180,28 @@ void set_var(const char* name, double value, Env* env)
     (env->var_count)++;
 }
 
-double eval_func(const char* name, double* args)
+double eval_func(const char* name, double* args, int arg_size)
 {
-
+    // compare name with all function name
+    for (int i = 0; builtins[i].name != NULL; i++)
+    {
+        if (strcmp(builtins[i].name, name) == 0) // 0 is equal
+        {
+            if (arg_size != builtins[i].arg_size)
+            {
+                fprintf(stderr, "%s expects %d args, got %d\n", name, builtins[i].arg_size, arg_size);
+                exit(1);
+            }
+            else
+            {
+                return builtins[i].func(args, arg_size);
+            }
+        }
+    }
+    // name not in the list of built in functions, print error
+    fprintf(stderr, "%s not defined\n", name);
+    exit(1);
+    return 0;
 }
 
 int main()

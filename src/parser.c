@@ -154,7 +154,6 @@ ASTNode* parse_base(Parser* parser)
 
 ASTNode* parse_func(Parser* parser)
 {
-    printf("enter func\n");
     // func -> IDENT LPARAN (expr (COMMA expr)*)? RPARAN
 
     ASTNode* node = malloc(sizeof(ASTNode));
