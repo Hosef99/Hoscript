@@ -47,5 +47,5 @@ typedef struct
     Token current_token;
 } Parser;
 
-ASTNode* parse(Parser* parser);
+ASTNode* parse(Parser* parser, int* err);
 #endif

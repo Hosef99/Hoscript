@@ -6,8 +6,8 @@
 
 // ----------------------------- START FUNCTION ------------------------------------
 
-Token lex_number(const char* input, int* pos);
-Token lex_identifier(const char* input, int* pos);
+Token lex_number(const char* input, int* pos, int* err);
+Token lex_identifier(const char* input, int* pos, int* err);
 
 char* type_to_string(TokenType type)
 {
@@ -37,15 +37,16 @@ void eval_line(Token* tokens, int token_count)
     }
 
     for (int i = 0; i < token_count; i++) {
-    if (tokens[i].name) {
-        free(tokens[i].name);
+        if (tokens[i].name) {
+            free(tokens[i].name);
+        }
     }
-}
 
 }
 
-Token lex(const char* input, int* pos)
+Token lex(const char* input, int* pos, int* err)
 {
+    Token tok = {TOK_EOF, 0, NULL};
     while (input[*pos] != '\0')
     {
         if (input[*pos] == ' ') 
@@ -54,7 +55,7 @@ Token lex(const char* input, int* pos)
             continue;
         }
 
-        if (isdigit(input[*pos])) return lex_number(input, pos);
+        if (isdigit(input[*pos])) return lex_number(input, pos, err);
         if (input[*pos] == '+') { (*pos)++; return (Token){TOK_PLUS, 0, NULL}; }
         if (input[*pos] == '-') { (*pos)++; return (Token){TOK_MINUS, 0, NULL}; }
         if (input[*pos] == '*') { (*pos)++; return (Token){TOK_MUL, 0, NULL}; }
@@ -64,22 +65,19 @@ Token lex(const char* input, int* pos)
         if (input[*pos] == ')') { (*pos)++; return (Token){TOK_RPAREN, 0, NULL}; }
         if (input[*pos] == ',') { (*pos)++; return (Token){TOK_COMMA, 0, NULL}; }
         if (input[*pos] == '=') { (*pos)++; return (Token){TOK_ASSIGN, 0, NULL}; }
-        if (isalpha(input[*pos]) || input[*pos] == '_') return lex_identifier(input, pos);
+        if (isalpha(input[*pos]) || input[*pos] == '_') return lex_identifier(input, pos, err);
         
         printf("Syntax error, or not yet implemented.");
-        exit(1);
+        *err = 1;
+        return tok;
     }
-    Token t;
-    t.name = NULL;
-    t.value = 0;
-    t.type = TOK_EOF;
-    return t;
+    return tok;
 }
 
-Token lex_number(const char* input, int* pos)
+Token lex_number(const char* input, int* pos, int* err)
 {
     // use atof to turn string into double
-    Token token;
+    Token token = {TOK_NUM, 0, NULL};
     char buffer[64]; // 63 characters including the terminator '\0'
     int index = 0;
     int has_dot = 0;
@@ -90,7 +88,8 @@ Token lex_number(const char* input, int* pos)
             if (has_dot)
             {
                 printf("Number Error: multiple decimal point in number.\n");
-                exit(1);
+                *err = 1;
+                return token;
             }
             has_dot = 1;
         }
@@ -98,7 +97,8 @@ Token lex_number(const char* input, int* pos)
         if (index >= 63)
         {
             printf("Number Error: Too long.\n");
-            exit(1);
+            *err = 1;
+            return token;
         }
         
         buffer[index++] = input[(*pos)++];
@@ -111,14 +111,14 @@ Token lex_number(const char* input, int* pos)
     if (*end != '\0')
     {
         printf("Number Error: invalid characters in number.\n");
+        *err = 1;
+        return token;
     }
 
-    token.type = TOK_NUM;
-    token.name = NULL;
     return token;
 }
 
-Token lex_identifier(const char* input, int* pos)
+Token lex_identifier(const char* input, int* pos, int* err)
 {
     Token token;
     token.type = TOK_IDENT;
@@ -129,7 +129,8 @@ Token lex_identifier(const char* input, int* pos)
         if (index >= 63)
         {
             printf("Number Error: Too long.\n");
-            exit(1);
+            *err = 1;
+            return token;
         }
         
         buffer[index++] = input[(*pos)++];
@@ -140,15 +141,16 @@ Token lex_identifier(const char* input, int* pos)
     return token;
 }
 
-Token* generate_tokens(const char* input, int* out_count) {
+Token* generate_tokens(const char* input, int* out_count, int* err) {
     int capacity = 16;
     int size = 0;
     Token* tokens = malloc(capacity * sizeof(Token));
     
     int pos = 0;
     while (1) {
-        Token tok = lex(input, &pos);
-        
+        Token tok = lex(input, &pos, err);
+        if (*err) return NULL;
+
         if (size >= capacity) {
             capacity *= 2;
             tokens = realloc(tokens, capacity * sizeof(Token));

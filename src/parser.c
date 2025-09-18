@@ -3,17 +3,16 @@
 #include <string.h>  // strcmp, strdup, strlen
 #include <ctype.h>   // isdigit, isalpha, isspace
 // #include "parser.h"
-#include "lexer.h"
+
 #include "parser.h"
 
-
 void next_token(Parser* parser);
-ASTNode* parse_assign(Parser* parser);
-ASTNode* parse_expr(Parser* parser);
-ASTNode* parse_term(Parser* parser);
-ASTNode* parse_factor(Parser* parser);
-ASTNode* parse_base(Parser* parser);
-ASTNode* parse_func(Parser* parser);
+ASTNode* parse_assign(Parser* parser, int* err);
+ASTNode* parse_expr(Parser* parser, int* err);
+ASTNode* parse_term(Parser* parser, int* err);
+ASTNode* parse_factor(Parser* parser, int* err);
+ASTNode* parse_base(Parser* parser, int* err);
+ASTNode* parse_func(Parser* parser, int* err);
 void print_ast(ASTNode* node, int indent);
 
 void next_token(Parser* parser)
@@ -32,21 +31,21 @@ ASTNode* make_op_node(TokenType op, ASTNode* left, ASTNode* right)
     return node;
 }
 
-ASTNode* parse(Parser* parser)
+ASTNode* parse(Parser* parser, int* err)
 {
     // need to do some filtering, look ahead for second token 
     if (parser->current_token.type == TOK_IDENT) // identifier
     {   
         if (parser->tokens[parser->pos+1].type == TOK_ASSIGN) // look ahead, be careful of spaces
         {
-            return parse_assign(parser);
+            return parse_assign(parser, err);
         }
     }
     
-    return parse_expr(parser);
+    return parse_expr(parser, err);
 }
 
-ASTNode* parse_assign(Parser* parser)
+ASTNode* parse_assign(Parser* parser, int* err)
 {
     ASTNode* node = malloc(sizeof(ASTNode));
 
@@ -55,23 +54,23 @@ ASTNode* parse_assign(Parser* parser)
     next_token(parser); // IDENT 
     next_token(parser); // '='
     
-    ASTNode* rhs = parse_expr(parser);
+    ASTNode* rhs = parse_expr(parser, err);
 
     node->type = AST_ASSIGN;
     node->assign.expr = rhs;
     return node;
 }
 
-ASTNode* parse_expr(Parser* parser)
+ASTNode* parse_expr(Parser* parser, int* err)
 {
-    ASTNode* left = parse_term(parser);
+    ASTNode* left = parse_term(parser, err);
 
     while (parser->current_token.type == TOK_PLUS || parser->current_token.type == TOK_MINUS)
     {
         TokenType op = parser->current_token.type;
         next_token(parser);
 
-        ASTNode* right = parse_term(parser);
+        ASTNode* right = parse_term(parser, err);
 
         ASTNode* new_node = make_op_node(op, left, right);
         left = new_node;
@@ -79,17 +78,17 @@ ASTNode* parse_expr(Parser* parser)
     return left;
 }
 
-ASTNode* parse_term(Parser* parser)
+ASTNode* parse_term(Parser* parser, int* err)
 {
 
-    ASTNode* left = parse_factor(parser);
+    ASTNode* left = parse_factor(parser, err);
 
     while (parser->current_token.type == TOK_MUL || parser->current_token.type == TOK_DIV)
     {
         TokenType op = parser->current_token.type;
         next_token(parser);
 
-        ASTNode* right = parse_factor(parser);
+        ASTNode* right = parse_factor(parser, err);
 
         ASTNode* new_node = make_op_node(op, left, right);
         left = new_node;
@@ -97,16 +96,16 @@ ASTNode* parse_term(Parser* parser)
     return left;
 }
 
-ASTNode* parse_factor(Parser* parser)
+ASTNode* parse_factor(Parser* parser, int* err)
 {
-    ASTNode* left = parse_base(parser);
+    ASTNode* left = parse_base(parser, err);
 
     if (parser->current_token.type == TOK_POW)
     {
         TokenType op = TOK_POW;
         next_token(parser);
         
-        ASTNode* right = parse_factor(parser);
+        ASTNode* right = parse_factor(parser, err);
         ASTNode* op_node = make_op_node(op, left, right);
         left = op_node;
     }
@@ -114,7 +113,7 @@ ASTNode* parse_factor(Parser* parser)
     return left;
 }
 
-ASTNode* parse_base(Parser* parser)
+ASTNode* parse_base(Parser* parser, int* err)
 {
     ASTNode* new_node = malloc(sizeof(ASTNode));
     if (parser->current_token.type == TOK_NUM) // number
@@ -127,7 +126,7 @@ ASTNode* parse_base(Parser* parser)
     {
         if (parser->tokens[parser->pos+1].type == TOK_LPAREN) // second token LPAREN
         {
-            return parse_func(parser);
+            return parse_func(parser, err);
         }
         else // identifier
         {
@@ -139,7 +138,7 @@ ASTNode* parse_base(Parser* parser)
     else if (parser->current_token.type == TOK_LPAREN) // LPAREN expr RPARAN
     {
         next_token(parser);
-        new_node = parse_expr(parser);
+        new_node = parse_expr(parser, err);
 
         if (parser->current_token.type != TOK_RPAREN) // SYNTAX ERROR!!!
         {
@@ -152,7 +151,7 @@ ASTNode* parse_base(Parser* parser)
     return new_node;
 }
 
-ASTNode* parse_func(Parser* parser)
+ASTNode* parse_func(Parser* parser, int* err)
 {
     // func -> IDENT LPARAN (expr (COMMA expr)*)? RPARAN
 
@@ -165,7 +164,8 @@ ASTNode* parse_func(Parser* parser)
 
     if (parser->current_token.type != TOK_LPAREN) {
         fprintf(stderr, "Syntax error: expected '('\n");
-        exit(1);
+        *err = 1;
+        return NULL;
     }
     next_token(parser); // consume '('
 
@@ -174,16 +174,17 @@ ASTNode* parse_func(Parser* parser)
         // allocate space for arguments (say max 16 for now)
         node->func.args = malloc(16 * sizeof(ASTNode*));
 
-        node->func.args[node->func.arg_size++] = parse_expr(parser);
+        node->func.args[node->func.arg_size++] = parse_expr(parser, err);
         while (parser->current_token.type == TOK_COMMA) {
             next_token(parser); // consume ','
-            node->func.args[node->func.arg_size++] = parse_expr(parser);
+            node->func.args[node->func.arg_size++] = parse_expr(parser, err);
         }
     }
 
     if (parser->current_token.type != TOK_RPAREN) {
         fprintf(stderr, "Syntax error: expected ')'\n");
-        exit(1);
+        *err = 1;
+        return NULL;
     }
     next_token(parser); // consume ')'
 

@@ -32,6 +32,14 @@ typedef struct
     int var_count;
 } Env;
 
+typedef enum
+{
+    EVAL_OK = 0,
+    EVAL_SYNTAX_ERROR,
+    EVAL_NUMBER_ERROR,
+    EVAL_VARIABLE_ERROR
+} EvalStatus;
+
 typedef double (*BuiltinFunc)(double *args, int arg_size);
 
 typedef struct
@@ -41,10 +49,10 @@ typedef struct
     int arg_size;
 } BuiltinEntry;
 
-double eval(ASTNode* root, Env* env);
-double get_var(const char* name, Env* env);
-void set_var(const char* name, double value, Env* env);
-double eval_func(const char* name, double* args, int arg_size);
+double eval(ASTNode* root, Env* env, int* err);
+double get_var(const char* name, Env* env, int* err);
+void set_var(const char* name, double value, Env* env, int* err);
+double eval_func(const char* name, double* args, int arg_size, int* err);
 
 double PI()
 {
@@ -95,7 +103,7 @@ BuiltinEntry builtins[] = {
     {NULL,      NULL, 0} // sentinel
 };
 
-double eval(ASTNode* node, Env* env)
+double eval(ASTNode* node, Env* env, int* err)
 {
     double a;
     double b;
@@ -104,15 +112,19 @@ double eval(ASTNode* node, Env* env)
     switch (node->type)
     {
     case AST_ASSIGN:
-        a = eval(node->assign.expr, env);
-        set_var(node->assign.name, a, env);
+        a = eval(node->assign.expr, env, err);
+        if (*err) return NAN;
+        set_var(node->assign.name, a, env, err);
+        if (*err) return NAN;
         printf("%s = ", node->assign.name);
         return a;
     case AST_NUM:
         return node->value;
     case AST_BINOP:
-        a = eval(node->binary.left, env);
-        b = eval(node->binary.right, env);
+        a = eval(node->binary.left, env, err);
+        if (*err) return NAN;
+        b = eval(node->binary.right, env, err);
+        if (*err) return NAN;
         switch (node->binary.op)
         {
         case TOK_PLUS:
@@ -122,42 +134,50 @@ double eval(ASTNode* node, Env* env)
         case TOK_MUL:
             return a*b;
         case TOK_DIV:
-            return a/b;
+            return b != 0 ? a/b : (fprintf(stderr,"Division by zero\n"), *err=1, NAN);
         case TOK_POW:
             return pow(a,b);
         default:
             return 0;
         }
     case AST_IDENT:
-        return get_var(node->name, env);
+        return get_var(node->name, env, err);
     case AST_FUNC:
         args = malloc(sizeof(double) * node->func.arg_size);
         for (int i = 0; i < node->func.arg_size; i++)
         {
-            args[i] = eval(node->func.args[i], env);
+            args[i] = eval(node->func.args[i], env, err);
+            if (*err) 
+            {
+                free(args);
+                return NAN;
+            }
         }
-        
-        return eval_func(node->func.name, args, node->func.arg_size);
+        a = eval_func(node->func.name, args, node->func.arg_size, err);
+        free(args);
+        return a;
     default:
         return 0;
         break;
     }
 }
 
-double get_var(const char* name, Env* env)
+double get_var(const char* name, Env* env, int* err)
 {
     for (int i = 0; i < env->var_count; i++)
     {
         if (strcmp(env->var[i].name, name) == 0) // if equal strcmp returns 0
         {
+            *err = 0;
             return env->var[i].value;
         }
     }
     fprintf(stderr, "Variable error: variable %s not found\n", name);
-    exit(1);
+    *err = 1;
+    return NAN;
 }
 
-void set_var(const char* name, double value, Env* env)
+void set_var(const char* name, double value, Env* env, int* err)
 {
     for (int i = 0; i < env->var_count; i++) // check reassignment
     {
@@ -171,16 +191,17 @@ void set_var(const char* name, double value, Env* env)
     if (env->var_count == VAR_MAX)
     {
         fprintf(stderr, "Variable error: max number of variable reached\n");
-        exit(1);
+        *err = 1;
     }
     
     // variable not found, create a new one and increment var_count
     env->var[env->var_count].name = strdup(name); // need to free
     env->var[env->var_count].value = value;
     (env->var_count)++;
+    *err = 0;
 }
 
-double eval_func(const char* name, double* args, int arg_size)
+double eval_func(const char* name, double* args, int arg_size, int* err)
 {
     // compare name with all function name
     for (int i = 0; builtins[i].name != NULL; i++)
@@ -189,8 +210,9 @@ double eval_func(const char* name, double* args, int arg_size)
         {
             if (arg_size != builtins[i].arg_size)
             {
-                fprintf(stderr, "%s expects %d args, got %d\n", name, builtins[i].arg_size, arg_size);
-                exit(1);
+                fprintf(stderr, "Function %s expects %d args, got %d\n", name, builtins[i].arg_size, arg_size);
+                *err = 1;
+                return NAN;
             }
             else
             {
@@ -199,9 +221,9 @@ double eval_func(const char* name, double* args, int arg_size)
         }
     }
     // name not in the list of built in functions, print error
-    fprintf(stderr, "%s not defined\n", name);
-    exit(1);
-    return 0;
+    fprintf(stderr, "Function %s not defined\n", name);
+    *err = 1;
+    return NAN;
 }
 
 int main()
@@ -214,6 +236,7 @@ int main()
 
     while (1)
     {
+        int err = 0;
         printf("> ");
         fgets(input, sizeof(input), stdin);
         input[strcspn(input, "\n")] = '\0';
@@ -222,13 +245,25 @@ int main()
             printf("\n");
             break;
         }
-        Token* tokens = generate_tokens(input, &tok_count); 
-        Parser parser = {tokens, tok_count, 0, tokens[0]};
-        ASTNode* root = parse(&parser);
-        if (parser.current_token.type != TOK_EOF) {
-            printf("Syntax error: extra tokens at end of input\n");
-        }
 
-        printf("%.2lf\n", eval(root, &env));
+        Token* tokens = generate_tokens(input, &tok_count, &err); 
+        if (err) continue;
+
+
+        Parser parser = {tokens, tok_count, 0, tokens[0]};
+        
+        ASTNode* root = parse(&parser, &err);
+        if (err) continue;
+
+        if (parser.current_token.type != TOK_EOF) {
+            fprintf(stderr, "Syntax error: extra tokens at end of input\n");
+            continue;
+        }
+        
+        double result = eval(root, &env, &err);
+        if (!err)
+        {
+            printf("%.2lf\n", result);
+        }
     }
 }

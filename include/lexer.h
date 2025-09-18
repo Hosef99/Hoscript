@@ -22,9 +22,9 @@ typedef struct {
     char* name;
 } Token;
 
-Token lex(const char* input, int* pos); 
+Token lex(const char* input, int* pos, int* err); 
 char* type_to_string(TokenType type);
 void eval_line(Token* tokens, int token_count);
-Token* generate_tokens(const char* input, int* out_count);
+Token* generate_tokens(const char* input, int* out_count, int* err);
 void print_token(Token token);
 #endif
