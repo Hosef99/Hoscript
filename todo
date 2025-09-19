@@ -1,0 +1,5 @@
+# TODO
+- [ ] Fix memory issues for the Tokens in lexer.c and the ASTNodes in parser.c, need to free them
+- [ ] Unary +- operations
+- [ ] Allowing "+-", "-+" and "x*-y" similar to that.
+- [ ] 
