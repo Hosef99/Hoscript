@@ -22,7 +22,7 @@ void next_token(Parser* parser)
 
 ASTNode* make_op_node(TokenType op, ASTNode* left, ASTNode* right)
 {
-    ASTNode* node = malloc(sizeof(ASTNode));
+    ASTNode* node = malloc(sizeof(ASTNode)); // free all ast node
 
     node->type = AST_BINOP;
     node->binary.op = op;
@@ -47,9 +47,9 @@ ASTNode* parse(Parser* parser, int* err)
 
 ASTNode* parse_assign(Parser* parser, int* err)
 {
-    ASTNode* node = malloc(sizeof(ASTNode));
+    ASTNode* node = malloc(sizeof(ASTNode)); // free all ast node
 
-    node->assign.name = strdup(parser->current_token.name);
+    node->assign.name = strdup(parser->current_token.name); // free assign.name 
     // first token must be ident
     next_token(parser); // IDENT 
     next_token(parser); // '='
@@ -115,7 +115,7 @@ ASTNode* parse_factor(Parser* parser, int* err)
 
 ASTNode* parse_base(Parser* parser, int* err)
 {
-    ASTNode* new_node = malloc(sizeof(ASTNode));
+    ASTNode* new_node = malloc(sizeof(ASTNode)); // need to free every astnode
     if (parser->current_token.type == TOK_NUM) // number
     {
         new_node->type = AST_NUM;
@@ -131,7 +131,7 @@ ASTNode* parse_base(Parser* parser, int* err)
         else // identifier
         {
             new_node->type = AST_IDENT;
-            new_node->name = strdup(parser->current_token.name); // need to free memory later
+            new_node->name = strdup(parser->current_token.name); // need to free ast.name
             next_token(parser);
         }
     }
@@ -143,6 +143,7 @@ ASTNode* parse_base(Parser* parser, int* err)
         if (parser->current_token.type != TOK_RPAREN) // SYNTAX ERROR!!!
         {
             fprintf(stderr, "Syntax error: expected ')'\n");
+            *err = 1;
             return NULL;
         }
 
@@ -155,9 +156,9 @@ ASTNode* parse_func(Parser* parser, int* err)
 {
     // func -> IDENT LPARAN (expr (COMMA expr)*)? RPARAN
 
-    ASTNode* node = malloc(sizeof(ASTNode));
+    ASTNode* node = malloc(sizeof(ASTNode)); // need to free all the ast nodes 
     node->type = AST_FUNC;
-    node->func.name = strdup(parser->current_token.name);
+    node->func.name = strdup(parser->current_token.name); // need to free astnode.func.name
     node->func.arg_size = 0;
 
     next_token(parser); // consume IDENT
@@ -172,7 +173,7 @@ ASTNode* parse_func(Parser* parser, int* err)
     // arguments
     if (parser->current_token.type != TOK_RPAREN) {
         // allocate space for arguments (say max 16 for now)
-        node->func.args = malloc(16 * sizeof(ASTNode*));
+        node->func.args = malloc(16 * sizeof(ASTNode*)); // need to free the args in the AST
 
         node->func.args[node->func.arg_size++] = parse_expr(parser, err);
         while (parser->current_token.type == TOK_COMMA) {
@@ -223,4 +224,38 @@ void print_ast(ASTNode* node, int indent) {
         default:
             printf("UNKNOWN\n");
     }
+}
+
+void free_ast(ASTNode* node) {
+    if (!node) return;
+
+    switch (node->type) {
+    case AST_FUNC:
+        free(node->func.name);  // strdup’ed
+        for (int i = 0; i < node->func.arg_size; i++) {
+            free_ast(node->func.args[i]); // recursive free for children
+        }
+        free(node->func.args);
+        break;
+
+    case AST_ASSIGN:
+        free(node->assign.name);
+        free_ast(node->assign.expr);
+        break;
+
+    case AST_IDENT:
+        free(node->name); // strdup’ed
+        break;
+
+    case AST_BINOP:
+        free_ast(node->binary.left);
+        free_ast(node->binary.right);
+        break;
+
+    case AST_NUM:
+        // nothing heap-allocated
+        break;
+    }
+
+    free(node); // finally, free the node itself
 }

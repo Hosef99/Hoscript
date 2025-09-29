@@ -48,4 +48,5 @@ typedef struct
 } Parser;
 
 ASTNode* parse(Parser* parser, int* err);
+void free_ast(ASTNode* node);
 #endif

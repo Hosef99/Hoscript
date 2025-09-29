@@ -47,6 +47,7 @@ typedef struct
     const char* name;
     BuiltinFunc func;
     int arg_size;
+    const char* description;
 } BuiltinEntry;
 
 double eval(ASTNode* root, Env* env, int* err);
@@ -59,12 +60,24 @@ double PI()
     return 3.14159265358979323846;
 }
 
+double deg_to_rad(double x)
+{
+    return x/180*PI();
+}
+
+double rad_to_deg(double x)
+{
+    return x/PI()*180;
+}
+
 DEF_UNARY(sin)
 DEF_UNARY(cos)
 DEF_UNARY(tan)
 DEF_UNARY(asin)
 DEF_UNARY(acos)
 DEF_UNARY(atan)
+DEF_UNARY(deg_to_rad)
+DEF_UNARY(rad_to_deg)
 DEF_UNARY(sinh)
 DEF_UNARY(cosh)
 DEF_UNARY(tanh)
@@ -80,27 +93,29 @@ DEF_UNARY(sqrt)
 DEF_BINARY(pow)
 
 BuiltinEntry builtins[] = {
-    {"sin",     builtin_sin,    1},
-    {"cos",     builtin_cos,    1},
-    {"tan",     builtin_tan,    1},
-    {"asin",    builtin_asin,   1},
-    {"acos",    builtin_acos,   1},
-    {"atan",    builtin_atan,   1},
-    {"sinh",    builtin_sinh,   1},
-    {"cosh",    builtin_cosh,   1},
-    {"tanh",    builtin_tanh,   1},
-    {"exp",     builtin_exp,    1},
-    {"log",     builtin_log,    1},
-    {"log10",   builtin_log10,  1},
-    {"abs",     builtin_abs,    1},
-    {"floor",   builtin_floor,  1},
-    {"ceil",    builtin_ceil,   1},
-    {"round",   builtin_round,  1},
-    {"fmod",    builtin_fmod,   2},
-    {"sqrt",    builtin_sqrt,   1},
-    {"pow",     builtin_pow,    2},
-    {"pi",      PI, 0},
-    {NULL,      NULL, 0} // sentinel
+    {"sin",     builtin_sin,            1, "Sine of angle (radians)"},
+    {"cos",     builtin_cos,            1, "Cosine of angle (radians)"},
+    {"tan",     builtin_tan,            1, "Tangent of angle (radians)"},
+    {"asin",    builtin_asin,           1, "Inverse sine (result in radians)"},
+    {"acos",    builtin_acos,           1, "Inverse cosine (result in radians)"},
+    {"atan",    builtin_atan,           1, "Inverse tangent (result in radians)"},
+    {"rad2deg", builtin_rad_to_deg,     1, "Convert Radians to Degree"},
+    {"deg2rad", builtin_deg_to_rad,     1, "Convert Degree to Radians"},
+    {"sinh",    builtin_sinh,           1, "Hyperbolic sine"},
+    {"cosh",    builtin_cosh,           1, "Hyperbolic cosine"},
+    {"tanh",    builtin_tanh,           1, "Hyperbolic tangent"},
+    {"exp",     builtin_exp,            1, "Exponential function (e^x)"},
+    {"log",     builtin_log,            1, "Natural logarithm (base e)"},
+    {"log10",   builtin_log10,          1, "Logarithm base 10"},
+    {"abs",     builtin_abs,            1, "Absolute value"},
+    {"floor",   builtin_floor,          1, "Round down to nearest integer"},
+    {"ceil",    builtin_ceil,           1, "Round up to nearest integer"},
+    {"round",   builtin_round,          1, "Round to nearest integer"},
+    {"fmod",    builtin_fmod,           2, "Remainder of division (x mod y)"},
+    {"sqrt",    builtin_sqrt,           1, "Square root"},
+    {"pow",     builtin_pow,            2, "Raise to power (x^y)"},
+    {"pi",      PI,                     0, "Mathematical constant 3.14159..."},
+    {NULL,      NULL, 0, NULL} // sentinel
 };
 
 double eval(ASTNode* node, Env* env, int* err)
@@ -226,6 +241,23 @@ double eval_func(const char* name, double* args, int arg_size, int* err)
     return NAN;
 }
 
+void print_help() {
+    printf("Available commands:\n");
+    printf("  quit   Exit the program\n");
+    printf("  help   Show this message\n\n");
+
+    printf("Available functions:\n");
+    for (int i = 0; builtins[i].name != NULL; i++) {
+        printf("  %-8s (%d args) - %s\n", 
+               builtins[i].name, 
+               builtins[i].arg_size, 
+               builtins[i].description);
+    }
+
+    printf("\nOperators: +  -  *  /  ^  =\n");
+}
+
+
 int main()
 {
     char input[256];
@@ -240,10 +272,15 @@ int main()
         printf("> ");
         fgets(input, sizeof(input), stdin);
         input[strcspn(input, "\n")] = '\0';
-        if (strcmp(input, "quit()") == 0)
+        if (strcmp(input, "quit") == 0)
         {
             printf("\n");
             break;
+        }
+        else if (strcmp(input, "help") == 0)
+        {
+            print_help();
+            continue;
         }
 
         Token* tokens = generate_tokens(input, &tok_count, &err); 
@@ -263,7 +300,11 @@ int main()
         double result = eval(root, &env, &err);
         if (!err)
         {
-            printf("%.2lf\n", result);
+            printf("%lf\n", result);
         }
+
+        // at the end of a line, free the tokens and ast nodes
+        free_tokens(tokens, tok_count);
+        free_ast(root);
     }
 }

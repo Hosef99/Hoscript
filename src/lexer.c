@@ -8,6 +8,7 @@
 
 Token lex_number(const char* input, int* pos, int* err);
 Token lex_identifier(const char* input, int* pos, int* err);
+void free_token(Token* token);
 
 char* type_to_string(TokenType type)
 {
@@ -144,7 +145,7 @@ Token lex_identifier(const char* input, int* pos, int* err)
 Token* generate_tokens(const char* input, int* out_count, int* err) {
     int capacity = 16;
     int size = 0;
-    Token* tokens = malloc(capacity * sizeof(Token));
+    Token* tokens = malloc(capacity * sizeof(Token)); // free tokens in the future
     
     int pos = 0;
     while (1) {
@@ -167,4 +168,13 @@ Token* generate_tokens(const char* input, int* out_count, int* err) {
 void print_token(Token token)
 {
     printf("Type: %s\nName: %s\nValue: %.2lf\n\n", type_to_string(token.type), token.name, token.value);
+}
+
+void free_tokens(Token* tokens, int count)
+{
+    for (int i = 0; i < count; i++)
+    {
+        free(tokens[i].name);
+    }
+    free(tokens);
 }
