@@ -43,7 +43,7 @@ ASTNode* parse(Parser* parser, int* err)
     // need to do some filtering, look ahead for second token 
     if (match_token(parser, TOK_IDENT, 0)) // identifier
     {   
-        if (match_token(parser, AST_ASSIGN, 1)) // look ahead, be careful of spaces
+        if (match_token(parser, TOK_ASSIGN, 1)) // look ahead, be careful of spaces
         {
             return parse_assign(parser, err);
         }
