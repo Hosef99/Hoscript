@@ -171,6 +171,9 @@ double eval(ASTNode* node, Env* env, int* err)
         a = eval_func(node->func.name, args, node->func.arg_size, err);
         free(args);
         return a;
+    case AST_UNOP:
+        a = eval(node->binary.right, env, err);
+        return -a;
     default:
         return 0;
         break;
@@ -298,10 +301,11 @@ int main()
         }
         
         double result = eval(root, &env, &err);
-        if (!err)
-        {
+        if (!err && tok_count != 1)
+        {   
             printf("%lf\n", result);
         }
+
 
         // at the end of a line, free the tokens and ast nodes
         free_tokens(tokens, tok_count);

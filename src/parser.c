@@ -7,10 +7,12 @@
 #include "parser.h"
 
 void next_token(Parser* parser);
+int match_token(Parser* parser, TokenType type, int look_ahead);
 ASTNode* parse_assign(Parser* parser, int* err);
 ASTNode* parse_expr(Parser* parser, int* err);
 ASTNode* parse_term(Parser* parser, int* err);
 ASTNode* parse_factor(Parser* parser, int* err);
+ASTNode* parse_power(Parser* parser, int* err);
 ASTNode* parse_base(Parser* parser, int* err);
 ASTNode* parse_func(Parser* parser, int* err);
 void print_ast(ASTNode* node, int indent);
@@ -18,6 +20,11 @@ void print_ast(ASTNode* node, int indent);
 void next_token(Parser* parser)
 {
     parser->current_token = parser->tokens[++(parser->pos)];
+}
+
+int match_token(Parser* parser, TokenType type, int look_ahead)
+{
+    return (parser->tokens[parser->pos+look_ahead].type == type);
 }
 
 ASTNode* make_op_node(TokenType op, ASTNode* left, ASTNode* right)
@@ -34,9 +41,9 @@ ASTNode* make_op_node(TokenType op, ASTNode* left, ASTNode* right)
 ASTNode* parse(Parser* parser, int* err)
 {
     // need to do some filtering, look ahead for second token 
-    if (parser->current_token.type == TOK_IDENT) // identifier
+    if (match_token(parser, TOK_IDENT, 0)) // identifier
     {   
-        if (parser->tokens[parser->pos+1].type == TOK_ASSIGN) // look ahead, be careful of spaces
+        if (match_token(parser, AST_ASSIGN, 1)) // look ahead, be careful of spaces
         {
             return parse_assign(parser, err);
         }
@@ -65,7 +72,7 @@ ASTNode* parse_expr(Parser* parser, int* err)
 {
     ASTNode* left = parse_term(parser, err);
 
-    while (parser->current_token.type == TOK_PLUS || parser->current_token.type == TOK_MINUS)
+    while (match_token(parser, TOK_PLUS, 0) || match_token(parser, TOK_MINUS, 0))
     {
         TokenType op = parser->current_token.type;
         next_token(parser);
@@ -83,7 +90,7 @@ ASTNode* parse_term(Parser* parser, int* err)
 
     ASTNode* left = parse_factor(parser, err);
 
-    while (parser->current_token.type == TOK_MUL || parser->current_token.type == TOK_DIV)
+    while (match_token(parser, TOK_MUL, 0) || match_token(parser, TOK_DIV, 0))
     {
         TokenType op = parser->current_token.type;
         next_token(parser);
@@ -98,9 +105,36 @@ ASTNode* parse_term(Parser* parser, int* err)
 
 ASTNode* parse_factor(Parser* parser, int* err)
 {
+    int sign = 1;
+
+    while (match_token(parser, TOK_PLUS, 0) || match_token(parser, TOK_MINUS, 0))
+    {
+        if (match_token(parser, TOK_MINUS, 0))
+        {
+            sign = -sign;
+        }
+        next_token(parser);
+    }
+
+    ASTNode* node = parse_power(parser, err);
+    
+    if (sign == -1)
+    {
+        ASTNode* unary = malloc(sizeof(ASTNode));
+        unary->type = AST_UNOP;
+        unary->binary.op = TOK_MINUS;
+        unary->binary.right = node;
+        node = unary;    
+    }
+
+    return node;
+}
+
+ASTNode* parse_power(Parser* parser, int* err)
+{
     ASTNode* left = parse_base(parser, err);
 
-    if (parser->current_token.type == TOK_POW)
+    if (match_token(parser, TOK_POW, 0))
     {
         TokenType op = TOK_POW;
         next_token(parser);
@@ -116,15 +150,15 @@ ASTNode* parse_factor(Parser* parser, int* err)
 ASTNode* parse_base(Parser* parser, int* err)
 {
     ASTNode* new_node = malloc(sizeof(ASTNode)); // need to free every astnode
-    if (parser->current_token.type == TOK_NUM) // number
+    if (match_token(parser, TOK_NUM, 0)) // number
     {
         new_node->type = AST_NUM;
         new_node->value = parser->current_token.value;
         next_token(parser);
     }
-    else if (parser->current_token.type == TOK_IDENT) // if first token identifier
+    else if (match_token(parser, TOK_IDENT, 0)) // if first token identifier
     {
-        if (parser->tokens[parser->pos+1].type == TOK_LPAREN) // second token LPAREN
+        if (match_token(parser, TOK_LPAREN, 1)) // second token LPAREN
         {
             return parse_func(parser, err);
         }
@@ -135,12 +169,12 @@ ASTNode* parse_base(Parser* parser, int* err)
             next_token(parser);
         }
     }
-    else if (parser->current_token.type == TOK_LPAREN) // LPAREN expr RPARAN
+    else if (match_token(parser, TOK_LPAREN, 0)) // LPAREN expr RPARAN
     {
         next_token(parser);
         new_node = parse_expr(parser, err);
 
-        if (parser->current_token.type != TOK_RPAREN) // SYNTAX ERROR!!!
+        if (!match_token(parser, TOK_RPAREN, 0)) // SYNTAX ERROR!!!
         {
             fprintf(stderr, "Syntax error: expected ')'\n");
             *err = 1;
@@ -254,6 +288,9 @@ void free_ast(ASTNode* node) {
 
     case AST_NUM:
         // nothing heap-allocated
+        break;
+    case AST_UNOP:
+        free_ast(node->binary.right);
         break;
     }
 
