@@ -84,7 +84,7 @@ DEF_UNARY(tanh)
 DEF_UNARY(exp)
 DEF_UNARY(log)
 DEF_UNARY(log10)
-DEF_UNARY(abs)
+DEF_UNARY(fabs)
 DEF_UNARY(floor)
 DEF_UNARY(ceil)
 DEF_UNARY(round)
@@ -107,7 +107,7 @@ BuiltinEntry builtins[] = {
     {"exp",     builtin_exp,            1, "Exponential function (e^x)"},
     {"log",     builtin_log,            1, "Natural logarithm (base e)"},
     {"log10",   builtin_log10,          1, "Logarithm base 10"},
-    {"abs",     builtin_abs,            1, "Absolute value"},
+    {"abs",     builtin_fabs,            1, "Absolute value"},
     {"floor",   builtin_floor,          1, "Round down to nearest integer"},
     {"ceil",    builtin_ceil,           1, "Round up to nearest integer"},
     {"round",   builtin_round,          1, "Round to nearest integer"},

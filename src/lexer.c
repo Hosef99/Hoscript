@@ -68,7 +68,7 @@ Token lex(const char* input, int* pos, int* err)
         if (input[*pos] == '=') { (*pos)++; return (Token){TOK_ASSIGN, 0, NULL}; }
         if (isalpha(input[*pos]) || input[*pos] == '_') return lex_identifier(input, pos, err);
         
-        printf("Syntax error, or not yet implemented.");
+        printf("Syntax error, or not yet implemented.\n");
         *err = 1;
         return tok;
     }
