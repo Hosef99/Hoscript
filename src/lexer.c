@@ -14,19 +14,22 @@ char* type_to_string(TokenType type)
 {
     switch (type)
     {
-    case TOK_NUM:        return "Number";
-    case TOK_PLUS:       return "Plus";
-    case TOK_MINUS:      return "Minus";
-    case TOK_MUL:        return "Multiply";
-    case TOK_DIV:        return "Divide";
-    case TOK_POW:        return "Power";
-    case TOK_LPAREN:     return "LeftParen";
-    case TOK_RPAREN:     return "RightParen";
-    case TOK_IDENT: return "Identifier";
-    case TOK_COMMA:      return "Comma";
-    case TOK_ASSIGN:     return "Equals";
-    case TOK_EOF:        return "EOF";
-    default:             return "Unknown";
+    case TOK_NUM:       return "Number";
+    case TOK_PLUS:      return "Plus";
+    case TOK_MINUS:     return "Minus";
+    case TOK_MUL:       return "Multiply";
+    case TOK_DIV:       return "Divide";
+    case TOK_POW:       return "Power";
+    case TOK_LPAREN:    return "LeftParen";
+    case TOK_RPAREN:    return "RightParen";
+    case TOK_LBRACK:    return "LeftBrack";
+    case TOK_RBRACK:    return "RightBrack";
+    case TOK_IDENT:     return "Identifier";
+    case TOK_COMMA:     return "Comma";
+    case TOK_SEMI:      return "Semicolon";
+    case TOK_ASSIGN:    return "Equals";
+    case TOK_EOF:       return "EOF";
+    default:            return "Unknown";
     }
 }
 
@@ -42,7 +45,6 @@ void eval_line(Token* tokens, int token_count)
             free(tokens[i].name);
         }
     }
-
 }
 
 Token lex(const char* input, int* pos, int* err)
@@ -64,7 +66,10 @@ Token lex(const char* input, int* pos, int* err)
         if (input[*pos] == '^') { (*pos)++; return (Token){TOK_POW, 0, NULL}; }
         if (input[*pos] == '(') { (*pos)++; return (Token){TOK_LPAREN, 0, NULL}; }
         if (input[*pos] == ')') { (*pos)++; return (Token){TOK_RPAREN, 0, NULL}; }
+        if (input[*pos] == '[') { (*pos)++; return (Token){TOK_LBRACK, 0, NULL}; }
+        if (input[*pos] == ']') { (*pos)++; return (Token){TOK_RBRACK, 0, NULL}; }
         if (input[*pos] == ',') { (*pos)++; return (Token){TOK_COMMA, 0, NULL}; }
+        if (input[*pos] == ';') { (*pos)++; return (Token){TOK_SEMI, 0, NULL}; }
         if (input[*pos] == '=') { (*pos)++; return (Token){TOK_ASSIGN, 0, NULL}; }
         if (isalpha(input[*pos]) || input[*pos] == '_') return lex_identifier(input, pos, err);
         

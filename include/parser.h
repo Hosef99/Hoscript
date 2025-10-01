@@ -35,6 +35,12 @@ typedef struct ASTNode {
             struct ASTNode** args;
             int arg_size;
         } func;
+        struct
+        {
+            int rows;
+            int cols;
+            int** mat;
+        } mat;
         
     };
 } ASTNode;

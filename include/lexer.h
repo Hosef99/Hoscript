@@ -2,18 +2,21 @@
 #define LEXER_H
 
 typedef enum {
-    TOK_NUM,       // numbers
-    TOK_PLUS,      // +
-    TOK_MINUS,     // -
-    TOK_MUL,       // *
-    TOK_DIV,       // /
-    TOK_POW,       // ^
-    TOK_LPAREN,    // (
-    TOK_RPAREN,    // )
-    TOK_IDENT,// variable or function names
-    TOK_COMMA,     // ,
-    TOK_ASSIGN,    // =
-    TOK_EOF        // end of input
+    TOK_NUM,        // numbers
+    TOK_PLUS,       // +
+    TOK_MINUS,      // -
+    TOK_MUL,        // *
+    TOK_DIV,        // /
+    TOK_POW,        // ^
+    TOK_LPAREN,     // (
+    TOK_RPAREN,     // )
+    TOK_LBRACK,     // [
+    TOK_RBRACK,     // ]
+    TOK_IDENT,      // variable or function names
+    TOK_COMMA,      // ,
+    TOK_SEMI,       // ;
+    TOK_ASSIGN,     // =
+    TOK_EOF         // end of input
 } TokenType;
 
 typedef struct {
