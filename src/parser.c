@@ -274,7 +274,7 @@ ASTNode* parse_row(Parser* parser, int* err)
     node->row.elements = malloc(4 * sizeof(ASTNode*));
     
     node->row.cols = 1;
-    node->row.elements = parse_expr(parser, err);
+    node->row.elements[0] = parse_expr(parser, err);
 
     while (match_token(parser, TOK_COMMA, 0))
     {

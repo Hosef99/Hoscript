@@ -41,11 +41,11 @@ typedef struct ASTNode {
         {
             int row_cap;
             int rows;
-            ASTNode** matrix;
+            struct ASTNode** matrix;
         } mat;
         struct
         {
-            ASTNode** elements;
+            struct ASTNode** elements;
             int cols;
             int col_cap;
         } row; 
