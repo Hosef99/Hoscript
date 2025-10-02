@@ -294,6 +294,7 @@ int main()
         
         ASTNode* root = parse(&parser, &err);
         if (err) continue;
+        print_ast(root, 0);
 
         if (parser.current_token.type != TOK_EOF) {
             fprintf(stderr, "Syntax error: extra tokens at end of input\n");

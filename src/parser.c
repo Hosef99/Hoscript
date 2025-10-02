@@ -17,7 +17,6 @@ ASTNode* parse_base(Parser* parser, int* err);
 ASTNode* parse_func(Parser* parser, int* err);
 ASTNode* parse_mat(Parser* parser, int* err);
 ASTNode* parse_row(Parser* parser, int* err);
-void print_ast(ASTNode* node, int indent);
 
 void next_token(Parser* parser)
 {
@@ -322,6 +321,20 @@ void print_ast(ASTNode* node, int indent) {
                 print_ast(node->func.args[i], indent + 1);
             }
             break;
+        case AST_ROW:
+            printf("ROW: %d elements\n", node->row.cols);
+            for (int i = 0; i < node->row.cols; i++)
+            {
+                print_ast(node->row.elements[i], indent + 1);
+            }
+            break;
+        case AST_MAT:
+            printf("MAT: %d rows\n", node->mat.rows);
+            for (int i = 0; i < node->mat.rows; i++)
+            {
+                print_ast(node->mat.matrix[i], indent + 1);
+            }
+            break;
         default:
             printf("UNKNOWN\n");
     }
@@ -358,6 +371,20 @@ void free_ast(ASTNode* node) {
         break;
     case AST_UNOP:
         free_ast(node->binary.right);
+        break;
+    case AST_ROW:
+        for (int i = 0; i < node->row.cols; i++)
+        {
+            free_ast(node->row.elements[i]);
+        }
+        free(node->row.elements);
+        break;
+    case AST_MAT:
+        for (int i = 0; i < node->mat.rows; i++)
+        {
+            free_ast(node->mat.matrix[i]);
+        }
+        free(node->mat.matrix);
         break;
     }
 
