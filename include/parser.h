@@ -10,7 +10,9 @@ typedef enum
     AST_UNOP,
     AST_IDENT,
     AST_ASSIGN,
-    AST_FUNC
+    AST_FUNC,
+    AST_ROW,
+    AST_MAT
 } ASTNodeType;
 
 typedef struct ASTNode {
@@ -37,11 +39,16 @@ typedef struct ASTNode {
         } func;
         struct
         {
+            int row_cap;
             int rows;
-            int cols;
-            int** mat;
+            ASTNode** matrix;
         } mat;
-        
+        struct
+        {
+            ASTNode** elements;
+            int cols;
+            int col_cap;
+        } row; 
     };
 } ASTNode;
 

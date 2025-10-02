@@ -15,6 +15,8 @@ ASTNode* parse_factor(Parser* parser, int* err);
 ASTNode* parse_power(Parser* parser, int* err);
 ASTNode* parse_base(Parser* parser, int* err);
 ASTNode* parse_func(Parser* parser, int* err);
+ASTNode* parse_mat(Parser* parser, int* err);
+ASTNode* parse_row(Parser* parser, int* err);
 void print_ast(ASTNode* node, int indent);
 
 void next_token(Parser* parser)
@@ -183,6 +185,10 @@ ASTNode* parse_base(Parser* parser, int* err)
 
         next_token(parser);
     }
+    else if (match_token(parser, TOK_LBRACK, 0))
+    {
+        return parse_mat(parser, err);
+    }
     return new_node;
 }
 
@@ -210,7 +216,7 @@ ASTNode* parse_func(Parser* parser, int* err)
         node->func.args = malloc(16 * sizeof(ASTNode*)); // need to free the args in the AST
 
         node->func.args[node->func.arg_size++] = parse_expr(parser, err);
-        while (parser->current_token.type == TOK_COMMA) {
+        while (match_token(parser, TOK_COMMA, 0)) {
             next_token(parser); // consume ','
             node->func.args[node->func.arg_size++] = parse_expr(parser, err);
         }
@@ -226,6 +232,67 @@ ASTNode* parse_func(Parser* parser, int* err)
     return node;
 }
 
+ASTNode* parse_mat(Parser* parser, int* err)
+{
+    int row, col;
+    // mat -> LBRACK row (SEMICOLON row)* RBRACK
+    next_token(parser);
+    int row_cap = 4;
+    ASTNode* node = malloc(sizeof(ASTNode));
+    node->type = AST_MAT;
+    node->mat.row_cap = row_cap;
+    node->mat.matrix = malloc(4 * sizeof(ASTNode*));
+
+    node->mat.rows = 1;
+    node->mat.matrix[0] = parse_row(parser, err);
+
+    while (match_token(parser, TOK_SEMI, 0))
+    {
+        // consume SEMI
+        next_token(parser);
+        
+        if (node->mat.rows == node->mat.row_cap)
+        {
+            node->mat.row_cap *= 2;
+            node->mat.matrix = realloc(node->mat.matrix, node->mat.row_cap * sizeof(ASTNode*));
+        }
+        
+        node->mat.matrix[node->mat.rows++] = parse_row(parser, err);
+    }
+
+    // consume RBRACK
+    next_token(parser);
+
+    return node;
+}
+
+ASTNode* parse_row(Parser* parser, int* err)
+{
+    // make a row ASTNode
+    ASTNode* node = malloc(sizeof(ASTNode));
+    node->type = AST_ROW;
+    node->row.col_cap = 4;
+    node->row.elements = malloc(4 * sizeof(ASTNode*));
+    
+    node->row.cols = 1;
+    node->row.elements = parse_expr(parser, err);
+
+    while (match_token(parser, TOK_COMMA, 0))
+    {
+        // consume COMMA
+        next_token(parser);
+
+        if (node->row.cols == node->row.col_cap)
+        {
+            node->row.col_cap *= 2;
+            node->row.elements = realloc(node->row.elements, node->row.col_cap * sizeof(ASTNode*));
+        }
+        
+        node->row.elements[node->row.cols++] = parse_expr(parser, err);
+    }
+    
+    return node;
+}
 
 void print_ast(ASTNode* node, int indent) {
     if (!node) return;
