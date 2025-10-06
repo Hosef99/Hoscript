@@ -2,6 +2,7 @@
 #include <stdlib.h>  // malloc, free, atof, exit
 #include <string.h>  // strcmp, strdup, strlen
 #include <ctype.h>   // isdigit, isalpha, isspace
+#include <math.h>
 
 #include "mat.h"
 
@@ -221,9 +222,34 @@ Value det_mat(Value val, int* err) // using gaussian elimination
 
     int n = val.mat.rows;
     double** temp = cpy_mat(val.mat.data, n, n);
+    double det = 1.0;
+    int sign = 1;
 
     for (int col = 0; col < n; col++)
     {
+        int pivot = col;
+        for (int row = col + 1; row < n; row++)
+        {
+            if (fabs(temp[row][col]) > fabs(temp[pivot][col]))
+            {
+                pivot = row;
+            }
+        }
+        
+        if (fabs(temp[pivot][col]) < 1e-12)
+        {
+            det = 0;
+            break;
+        }
+        
+        if (pivot != col)
+        {
+            double* tempRow = temp[pivot];
+            temp[pivot] = temp[col];
+            temp[col] = tempRow;
+            sign *= -1;
+        }
+
         for (int row = col + 1; row < n; row++)
         {
             double scale = temp[row][col]/temp[col][col];
@@ -233,12 +259,13 @@ Value det_mat(Value val, int* err) // using gaussian elimination
             }
         }
     }
-    
-    double det = 1;
+
     for (int i = 0; i < n; i++)
     {
         det *= temp[i][i];
     }
+
+    det *= sign;
     free_mat(temp, n);
     res.number = det;
     return res;
