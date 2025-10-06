@@ -28,6 +28,36 @@ void free_mat(double** mat, int rows)
     free(mat);
 }
 
+double** cpy_mat(double** mat, int rows, int cols) // whatever is returned, needs to be freed
+{
+    double** new = alloc_mat(rows, cols);
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            new[i][j] = mat[i][j];
+        }
+    }
+
+    return new;
+}
+
+void add_row(double** mat, double* added_row, int row, int cols)
+{
+    for (int i = 0; i < cols; i++)
+    {
+        mat[row][cols] += added_row[cols];
+    }
+}
+
+void scalar_row(double* row, int cols, int scalar)
+{
+    for (int i = 0; i < cols; i++)
+    {
+        row[cols] *= scalar;
+    }
+}
+
 void print_mat(Value matrix, int* err)
 {
     // check if it is matrix
@@ -37,7 +67,7 @@ void print_mat(Value matrix, int* err)
         fprintf(stderr, "Value Error: value is not matrix\n");
     }
 
-    printf("\n[\n");
+    printf("[\n");
     for (int i = 0; i < matrix.mat.rows; i++)
     {
         for (int j = 0; j < matrix.mat.cols; j++)
@@ -46,7 +76,7 @@ void print_mat(Value matrix, int* err)
         }
         printf("\n");
     }
-    printf("]\n");
+    printf("]\n\n");
 }
 
 Value add_mat(Value val1, Value val2, int* err)
@@ -169,7 +199,7 @@ Value mul_mat(Value val1, Value val2, int* err)
     return res;
 }
 
-Value det_mat(Value val, int* err) // recursive, receives a matrix value, returns a number value
+Value det_mat(Value val, int* err) // using gaussian elimination
 {
     if (val.type != VAL_MAT)
     {
@@ -188,13 +218,30 @@ Value det_mat(Value val, int* err) // recursive, receives a matrix value, return
 
     Value res;
     res.type = VAL_NUM;
-    
-    // base case: 1x1
-    if (val.mat.rows == 1)
+
+    int n = val.mat.rows;
+    double** temp = cpy_mat(val.mat.data, n, n);
+
+    for (int col = 0; col < n; col++)
     {
-        res.number = val.mat.data[0][0];
-        return res;
+        for (int row = col + 1; row < n; row++)
+        {
+            double scale = temp[row][col]/temp[col][col];
+            for (int k = 0; k < n; k++)
+            {
+                temp[row][k] -= scale*temp[col][k];
+            }
+        }
     }
+    
+    double det = 1;
+    for (int i = 0; i < n; i++)
+    {
+        det *= temp[i][i];
+    }
+    free_mat(temp, n);
+    res.number = det;
+    return res;
 }
 
 int main()
@@ -202,16 +249,16 @@ int main()
     int err = 0;
     double** mat1 = alloc_mat(2, 2);
     
-    mat1[0][0] = 1;
-    mat1[0][1] = 2;
-    mat1[1][0] = 3;
-    mat1[1][1] = 4;
+    mat1[0][0] = 0;
+    mat1[0][1] = 7;
+    mat1[1][0] = 1;
+    mat1[1][1] = 7;
 
     double** mat2 = alloc_mat(2, 2);
 
-    mat2[0][0] = 5;
-    mat2[0][1] = 6;
-    mat2[1][0] = 7;
+    mat2[0][0] = 9;
+    mat2[0][1] = 9;
+    mat2[1][0] = 6;
     mat2[1][1] = 8;
 
     Value val1, val2;
@@ -232,5 +279,7 @@ int main()
     print_mat(add, &err);
     print_mat(sub, &err);
     print_mat(mul, &err);
+    printf("Determinant: %lf\n", det_mat(val1, &err).number);
+    printf("Determinant: %lf", det_mat(val2, &err).number);
     return 0;
 }
