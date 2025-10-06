@@ -9,51 +9,31 @@
 #define VAR_MAX 100
 
 #define DEF_UNARY(name) \
-double builtin_##name(double *args, int n) { \
-    if (n != 1) { fprintf(stderr, #name " expects 1 arg\n"); return NAN; } \
-    return name(args[0]); \
+Value builtin_##name(Value *args, int n) { \
+    Value res; \
+    res.type = VAL_NUM; \
+    if (n != 1 || args[0].type != VAL_NUM) { \
+        fprintf(stderr, #name " expects 1 numeric arg\n"); \
+        res.number = NAN; \
+        return res; \
+    } \
+    res.number = name(args[0].number); \
+    return res; \
 }
 
 #define DEF_BINARY(name) \
-double builtin_##name(double *args, int n) { \
-    if (n != 2) { fprintf(stderr, #name " expects 2 args\n"); return NAN; } \
-    return name(args[0], args[1]); \
+Value builtin_##name(Value *args, int n) { \
+    Value res; \
+    res.type = VAL_NUM; \
+    if (n != 2 || args[0].type != VAL_NUM || args[1].type != VAL_NUM) { \
+        fprintf(stderr, #name " expects 2 numeric args\n"); \
+        res.number = NAN; \
+        return res; \
+    } \
+    res.number = name(args[0].number, args[1].number); \
+    return res; \
 }
 
-typedef struct
-{
-    char* name;
-    double value;
-} Variable;
-
-typedef struct
-{
-    Variable* var;
-    int var_count;
-} Env;
-
-typedef enum
-{
-    EVAL_OK = 0,
-    EVAL_SYNTAX_ERROR,
-    EVAL_NUMBER_ERROR,
-    EVAL_VARIABLE_ERROR
-} EvalStatus;
-
-typedef double (*BuiltinFunc)(double *args, int arg_size);
-
-typedef struct
-{
-    const char* name;
-    BuiltinFunc func;
-    int arg_size;
-    const char* description;
-} BuiltinEntry;
-
-double eval(ASTNode* root, Env* env, int* err);
-double get_var(const char* name, Env* env, int* err);
-void set_var(const char* name, double value, Env* env, int* err);
-double eval_func(const char* name, double* args, int arg_size, int* err);
 
 double PI()
 {
@@ -118,42 +98,170 @@ BuiltinEntry builtins[] = {
     {NULL,      NULL, 0, NULL} // sentinel
 };
 
-double eval(ASTNode* node, Env* env, int* err)
+void print_value(Value val, int* err);
+void free_value(Value val);
+Value eval(ASTNode* root, Env* env, int* err);
+Value get_var(const char* name, Env* env, int* err);
+void set_var(const char* name, Value value, Env* env, int* err);
+Value eval_func(const char* name, double* args, int arg_size, int* err);
+
+
+
+const Value EMPTY;
+
+void print_value(Value val, int* err)
 {
-    double a;
-    double b;
-    double* args;
+    switch (val.type)
+    {
+    case VAL_EMP:
+        printf("Empty value\n");
+        break;
+    case VAL_NUM:
+        printf("%lf", val.number);
+        break;
+    case VAL_MAT:
+        print_mat(val, err);
+        break;
+    default:
+        fprintf(stderr, "Value Error: Unknown type\n");
+        err = 1;
+        break;
+    }
+}
+
+void free_value(Value val)
+{
+    switch (val.type)
+    {
+    case VAL_NUM:
+        // free nothing
+        break;
+    case VAL_MAT:
+        free_mat(val.mat.data, val.mat.rows);
+        break;
+    default:
+        break;
+    }
+}
+
+Value eval(ASTNode* node, Env* env, int* err)
+{
+    int rows, cols;
+    ASTNode* row;
+    Value a, b, res;
+    Value* args;
 
     switch (node->type)
     {
     case AST_ASSIGN:
         a = eval(node->assign.expr, env, err);
-        if (*err) return NAN;
+        if (*err) return EMPTY;
         set_var(node->assign.name, a, env, err);
-        if (*err) return NAN;
+        if (*err) return EMPTY;
         printf("%s = ", node->assign.name);
         return a;
     case AST_NUM:
-        return node->value;
+        a.type = VAL_NUM;
+        a.number = node->value;
+        return a;
     case AST_BINOP:
         a = eval(node->binary.left, env, err);
-        if (*err) return NAN;
+        if (*err) return EMPTY;
         b = eval(node->binary.right, env, err);
-        if (*err) return NAN;
+        if (*err) return EMPTY;
+        
         switch (node->binary.op)
         {
         case TOK_PLUS:
-            return a+b;
+            if (a.type != b.type)
+            {
+                fprintf(stderr, "Value Error: cannot perform addition on different types\n");
+                *err = 1;
+                return EMPTY;
+            }
+            switch (a.type)
+            {
+            case VAL_NUM:
+                res.type = VAL_NUM;
+                res.number = a.number + b.number;
+                return res;
+            case VAL_MAT:
+                res = add_mat(a, b, err);
+                if (*err) return EMPTY;
+                return res;
+            }
         case TOK_MINUS:
-            return a-b;
+            if (a.type != b.type)
+            {
+                fprintf(stderr, "Value Error: cannot perform subtraction on different types\n");
+                *err = 1;
+                return EMPTY;
+            }
+            switch (a.type)
+            {
+            case VAL_NUM:
+                res.type = VAL_NUM;
+                res.number = a.number - b.number;
+                return res;
+            case VAL_MAT:
+                res = sub_mat(a, b, err);
+                if (*err) return EMPTY;
+                return res;
+            }
         case TOK_MUL:
-            return a*b;
+            if ((a.type == VAL_MAT && b.type == VAL_NUM) || (b.type == VAL_MAT && a.type == VAL_NUM))
+            {
+                // scalar * matrix multiplication
+                if (a.type == VAL_MAT)
+                {
+                    return scalar_mat(a, b, err);
+                }
+                
+            }
+            switch (a.type)
+            {
+            case VAL_NUM:
+                res.type = VAL_NUM;
+                res.number = a.number * b.number;
+                return res;
+            case VAL_MAT:
+                res = mul_mat(a, b, err);
+                if (*err) return EMPTY;
+                return res;
+            }
         case TOK_DIV:
-            return b != 0 ? a/b : (fprintf(stderr,"Division by zero\n"), *err=1, NAN);
+            if (a.type == VAL_MAT)
+            {
+                fprintf(stderr, "Value Error: cannot perform division on matrices\n");
+                *err = 1;
+                return EMPTY;
+            }
+            if (b.number != 0)
+            {
+                res.type = VAL_NUM;
+                res.number = a.number / b.number;
+                return res;
+            }
+            else 
+            {
+                fprintf(stderr, "Value Error: division by zero\n");
+                *err = 1;
+                return EMPTY;
+            }
         case TOK_POW:
-            return pow(a,b);
+            switch (a.type)
+            {
+            case VAL_NUM:
+                res.type = VAL_NUM;
+                res.number = pow(a.number, b.number);
+                return res;
+            case VAL_MAT:
+                res = pow_mat(a, b, err);
+                if (*err) return EMPTY;
+                return res;
+            }
         default:
-            return 0;
+            return EMPTY;
         }
     case AST_IDENT:
         return get_var(node->name, env, err);
@@ -165,7 +273,7 @@ double eval(ASTNode* node, Env* env, int* err)
             if (*err) 
             {
                 free(args);
-                return NAN;
+                return EMPTY;
             }
         }
         a = eval_func(node->func.name, args, node->func.arg_size, err);
@@ -173,14 +281,60 @@ double eval(ASTNode* node, Env* env, int* err)
         return a;
     case AST_UNOP:
         a = eval(node->binary.right, env, err);
-        return -a;
+
+        switch (a.type)
+        {
+        case VAL_NUM:
+            a.number = -a.number;
+            return a;
+        case VAL_MAT:
+            b.type = VAL_NUM;
+            b.number = -1;
+            a = scalar_mat(a, b, err);
+            return a;
+        default:
+            fprintf(stderr, "Value Error: cannot subtract empty value\n");
+            *err = 1;
+            return EMPTY;
+        }
+    case AST_MAT:
+        // start evaluating matrices
+        rows = node->mat.rows;
+        cols = node->mat.matrix[0]->row.cols;
+        res.type = VAL_MAT;
+        res.mat.rows = rows;
+        res.mat.cols = cols;
+        res.mat.data = alloc_mat(rows, cols);
+
+        for (int i = 0; i < rows; i++) // there will be many bugs here please notice ????????
+        {
+            row = node->mat.matrix[i];
+            if (row->row.cols != cols)
+            {
+                fprintf(stderr, "Matrix Error: columns not consistent\n");
+                *err = 1;
+                return EMPTY;
+            }
+            
+            for (int j = 0; j < cols; j++)
+            {
+                a = eval(row->row.elements[j], env, err);
+                if (a.type != VAL_NUM)
+                {
+                    // nEED TO BE NUMBER PLEASE
+                }
+                
+                res.mat.data[i][j] = a.number;
+            }
+        }
+        return res;
     default:
-        return 0;
+        return EMPTY;
         break;
     }
 }
 
-double get_var(const char* name, Env* env, int* err)
+Value get_var(const char* name, Env* env, int* err)
 {
     for (int i = 0; i < env->var_count; i++)
     {
@@ -192,15 +346,16 @@ double get_var(const char* name, Env* env, int* err)
     }
     fprintf(stderr, "Variable error: variable %s not found\n", name);
     *err = 1;
-    return NAN;
+    return EMPTY;
 }
 
-void set_var(const char* name, double value, Env* env, int* err)
+void set_var(const char* name, Value value, Env* env, int* err)
 {
     for (int i = 0; i < env->var_count; i++) // check reassignment
     {
         if (strcmp(env->var[i].name, name) == 0) // if equal strcmp returns 0, variable found
         {
+            free_value(env->var[i].value); // so that matrix in the value can be freed
             env->var[i].value = value;
         }
     }
@@ -219,7 +374,7 @@ void set_var(const char* name, double value, Env* env, int* err)
     *err = 0;
 }
 
-double eval_func(const char* name, double* args, int arg_size, int* err)
+Value eval_func(const char* name, double* args, int arg_size, int* err)
 {
     // compare name with all function name
     for (int i = 0; builtins[i].name != NULL; i++)
@@ -230,7 +385,7 @@ double eval_func(const char* name, double* args, int arg_size, int* err)
             {
                 fprintf(stderr, "Function %s expects %d args, got %d\n", name, builtins[i].arg_size, arg_size);
                 *err = 1;
-                return NAN;
+                return EMPTY;
             }
             else
             {
@@ -241,7 +396,7 @@ double eval_func(const char* name, double* args, int arg_size, int* err)
     // name not in the list of built in functions, print error
     fprintf(stderr, "Function %s not defined\n", name);
     *err = 1;
-    return NAN;
+    return EMPTY;
 }
 
 void print_help() {
@@ -301,14 +456,14 @@ int main()
             continue;
         }
         
-        double result = eval(root, &env, &err);
+        Value result = eval(root, &env, &err);
         if (!err && tok_count != 1)
         {   
-            printf("%lf\n", result);
+            print_value(result, &err);
         }
 
-
         // at the end of a line, free the tokens and ast nodes
+        free_value(result);
         free_tokens(tokens, tok_count);
         free_ast(root);
     }

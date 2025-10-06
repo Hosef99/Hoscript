@@ -43,22 +43,6 @@ double** cpy_mat(double** mat, int rows, int cols) // whatever is returned, need
     return new;
 }
 
-void add_row(double** mat, double* added_row, int row, int cols)
-{
-    for (int i = 0; i < cols; i++)
-    {
-        mat[row][cols] += added_row[cols];
-    }
-}
-
-void scalar_row(double* row, int cols, int scalar)
-{
-    for (int i = 0; i < cols; i++)
-    {
-        row[cols] *= scalar;
-    }
-}
-
 void print_mat(Value matrix, int* err)
 {
     // check if it is matrix
@@ -78,6 +62,51 @@ void print_mat(Value matrix, int* err)
         printf("\n");
     }
     printf("]\n\n");
+}
+
+Value zero_mat(int n, int* err)
+{
+    if (n <= 0)
+    {
+        fprintf(stderr, "Matrix Error: dimension of zero matrix must be positive\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    Value res;
+    res.type = VAL_MAT;
+    res.mat.data = alloc_mat(n, n);
+    res.mat.rows = n;
+    res.mat.cols = n;
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            res.mat.data[i][j] = 0;
+        }
+    }
+    
+    return res;
+}
+
+Value ident_mat(int n, int* err)
+{
+    if (n <= 0)
+    {
+        fprintf(stderr, "Matrix Error: dimension of identity must be positive\n");
+        *err = 1;
+        return EMPTY;
+    }
+    
+    Value res = zero_mat(n, n, err);
+
+    for (int i = 0; i < n; i++)
+    {
+        res.mat.data[i][i] = 1;
+    }
+    
+    return res;
 }
 
 Value add_mat(Value val1, Value val2, int* err)
@@ -154,12 +183,33 @@ Value sub_mat(Value val1, Value val2, int* err)
     return res;
 }
 
+Value scalar_mat(Value val, Value scalar, int* err)
+{
+    int rows = val.mat.rows;
+    int cols = val.mat.cols;
+
+    Value res;
+    res.mat.rows = rows;
+    res.mat.cols = cols;
+    res.mat.data = cpy_mat(val.mat.data, rows, cols);
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            res.mat.data[i][j] *= scalar.number;
+        }
+    }
+    
+    return res;
+}
+
 Value mul_mat(Value val1, Value val2, int* err)
 {
     if (val1.type != VAL_MAT || val2.type != VAL_MAT)
     {
         *err = 1;
         fprintf(stderr, "Value Error: value is not matrix\n");
+        return EMPTY;
     }
     
     // dimension check n x m, n = rows, m = cols
@@ -198,6 +248,52 @@ Value mul_mat(Value val1, Value val2, int* err)
     res.mat.data = mat;
 
     return res;
+}
+
+Value pow_mat(Value val, Value pow, int* err)
+{
+    // dimension check, if the matrix is square
+    if (val.mat.rows != val.mat.cols)
+    {
+        fprintf(stderr, "Matrix Error: cannot raise a non-square matrix to a power\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    if (pow.number < 0)
+    {
+        fprintf(stderr, "Matrix Error: cannot raise a matrix to a negative power\n");
+    }
+
+    int n = val.mat.rows;
+    
+    if (pow.number == 0)
+    {
+        return ident_mat(n, err);
+    }
+    
+
+    double** base = cpy_mat(val.mat.data, n, n);
+    double** mat = cpy_mat(val.mat.data, n, n);
+
+    Value base_val;
+    Value mat_val;
+    base_val.type = VAL_MAT;
+    mat_val.type = VAL_MAT;
+
+    base_val.mat.data = base;
+    base_val.mat.rows = n;
+    base_val.mat.cols = n;
+    mat_val.mat.data = mat; 
+    mat_val.mat.rows = n;
+    mat_val.mat.cols = n;
+
+    for (int i = 0; i < pow.number - 1; i++)
+    {
+        mat_val = mul_mat(mat_val, base_val, err);
+    }
+    
+    return mat_val;
 }
 
 Value det_mat(Value val, int* err) // using gaussian elimination
@@ -362,53 +458,4 @@ Value inv_mat(Value val, int* err)
     res.mat.data = inv;
 
     return res;
-}
-
-int main()
-{
-    int err = 0;
-    double** mat1 = alloc_mat(2, 2);
-    
-    mat1[0][0] = 0;
-    mat1[0][1] = 7;
-    mat1[1][0] = 1;
-    mat1[1][1] = 7;
-
-    double** mat2 = alloc_mat(2, 2);
-
-    mat2[0][0] = 9;
-    mat2[0][1] = 9;
-    mat2[1][0] = 6;
-    mat2[1][1] = 8;
-
-    Value val1, val2;
-    val1.type = VAL_MAT;
-    val1.mat.rows = 2;
-    val1.mat.cols = 2;
-    val1.mat.data = mat1;
-
-    val2.type = VAL_MAT;
-    val2.mat.rows = 2;
-    val2.mat.cols = 2;
-    val2.mat.data = mat2;
-
-    Value add = add_mat(val1, val2, &err);
-    Value sub = sub_mat(val1, val2, &err);
-    Value mul = mul_mat(val1, val2, &err);
-
-    Value inv1 = inv_mat(val1, &err);
-    Value inv2 = inv_mat(val2, &err);
-
-
-    print_mat(add, &err);
-    print_mat(sub, &err);
-    print_mat(mul, &err);
-    printf("Determinant: %lf\n", det_mat(val1, &err).number);
-    printf("Determinant: %lf\n", det_mat(val2, &err).number);
-    
-    printf("\nInverses: \n");
-    print_mat(inv1, &err);
-    print_mat(inv2, &err);
-
-    return 0;
 }
