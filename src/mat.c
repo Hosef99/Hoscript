@@ -271,6 +271,99 @@ Value det_mat(Value val, int* err) // using gaussian elimination
     return res;
 }
 
+Value inv_mat(Value val, int* err)
+{
+    if (val.type != VAL_MAT)
+    {
+        *err = 1;
+        fprintf(stderr, "Value Error: value is not matrix\n");
+        return EMPTY;
+    }
+
+    // dimension check, need to be square
+    if (val.mat.rows != val.mat.cols)
+    {
+        *err = 1;
+        fprintf(stderr, "Matrix Error: not a square matrix\n");
+        return EMPTY;
+    }
+
+    int n = val.mat.rows;
+    double** aug = alloc_mat(n, 2*n);
+
+    // initialize augmented matrix
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            aug[i][j] = val.mat.data[i][j];
+        }
+        aug[i][i+n] = 1.0;
+    }
+    
+    // begin rrefing the augmented matrix
+    for (int col = 0; col < n; col++)
+    {
+        int pivot = col;
+        for (int row = col + 1; row < n; row++)
+        {
+            if (fabs(aug[row][col]) > fabs(aug[pivot][col]))
+            {
+                pivot = row;
+            }
+        }
+        
+        if (fabs(aug[pivot][col]) < 1e-12)
+        {
+            fprintf(stderr, "Matrix Error: matrix is singular (no inverse)\n");
+            free_mat(aug, n);
+            return EMPTY;
+        }
+
+        if (pivot != col)
+        {
+            double* tempRow = aug[pivot];
+            aug[pivot] = aug[col];
+            aug[col] = tempRow;
+        }
+
+        // make current row normalized, so pivot = 1
+
+        double div = aug[col][col];
+        for (int i = 0; i < n*2; i++)
+        {
+            aug[col][i] /= div;
+        }
+        
+        for (int row = 0; row < n; row++)
+        {
+            if (row == col) continue;
+            double scale = aug[row][col];
+            for (int i = 0; i < 2*n; i++)
+            {
+                aug[row][i] -= scale * aug[col][i];
+            }
+        }
+    }
+    
+    double** inv = alloc_mat(n, n);
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            inv[i][j] = aug[i][j+n];
+        }
+    }
+    free_mat(aug, n);
+    Value res;
+    res.type = VAL_MAT;
+    res.mat.rows = n;
+    res.mat.cols = n;
+    res.mat.data = inv;
+
+    return res;
+}
+
 int main()
 {
     int err = 0;
@@ -303,10 +396,19 @@ int main()
     Value sub = sub_mat(val1, val2, &err);
     Value mul = mul_mat(val1, val2, &err);
 
+    Value inv1 = inv_mat(val1, &err);
+    Value inv2 = inv_mat(val2, &err);
+
+
     print_mat(add, &err);
     print_mat(sub, &err);
     print_mat(mul, &err);
     printf("Determinant: %lf\n", det_mat(val1, &err).number);
-    printf("Determinant: %lf", det_mat(val2, &err).number);
+    printf("Determinant: %lf\n", det_mat(val2, &err).number);
+    
+    printf("\nInverses: \n");
+    print_mat(inv1, &err);
+    print_mat(inv2, &err);
+
     return 0;
 }
