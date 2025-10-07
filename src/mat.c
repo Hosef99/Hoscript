@@ -11,12 +11,9 @@ const Value EMPTY;
 double** alloc_mat(int rows, int cols)
 {
     double** mat = malloc(rows * sizeof(double*));
-    printf("finished malloc\n");
     for (int i = 0; i < rows; i++)
     {
-        printf("about to allocate row no %d\n", i);
         mat[i] = malloc(cols * sizeof(double));
-        printf("finished allocate row no %d\n", i);
     }
 
     return mat;
@@ -77,7 +74,6 @@ void print_mat(Value matrix, int* err)
 Value zero_mat(int rows, int cols, int* err)
 {
 
-    printf("just entered\n");
     if (rows <= 0 || cols <= 0)
     {
         fprintf(stderr, "Matrix Error: dimension of zero matrix must be positive\n");
@@ -87,7 +83,6 @@ Value zero_mat(int rows, int cols, int* err)
 
     Value res;
     res.type = VAL_MAT;
-    printf("about to allocate matrix\n");
     res.mat.data = alloc_mat(rows, cols);
     res.mat.rows = rows;
     res.mat.cols = cols;

@@ -84,7 +84,6 @@ Value zero(Value* args, int n)
         fprintf(stderr, "zero expects 2 numeric arg\n");
         return res;
     }
-    printf("I am still fine\n");
     int rows = args[0].number;
     int cols = args[1].number;
 
@@ -383,7 +382,7 @@ Value eval(ASTNode* node, Env* env, int* err)
     case AST_IDENT:
         return get_var(node->name, env, err);
     case AST_FUNC:
-        args = malloc(sizeof(double) * node->func.arg_size);
+        args = malloc(sizeof(Value) * node->func.arg_size);
         for (int i = 0; i < node->func.arg_size; i++)
         {
             args[i] = eval(node->func.args[i], env, err);
@@ -394,7 +393,11 @@ Value eval(ASTNode* node, Env* env, int* err)
             }
         }
         a = eval_func(node->func.name, args, node->func.arg_size, err);
-        if (*err) return EMPTY;        
+        if (*err) return EMPTY;    
+        for (int i = 0; i < node->func.arg_size; i++)
+        {
+            free_value(args[i]);
+        }
         free(args);
         return a;
     case AST_UNOP:
@@ -508,7 +511,6 @@ Value eval_func(const char* name, Value* args, int arg_size, int* err)
             else
             {   
                 Value res = builtins[i].func(args, arg_size);
-                printf("I am also fine\n");
                 return res;
             }
         }
