@@ -35,19 +35,110 @@ Value builtin_##name(Value *args, int n) { \
 }
 
 
-double PI()
+Value PI()
 {
-    return 3.14159265358979323846;
+    Value res;
+    res.type = VAL_NUM;
+    res.number = 3.1415926535897932384626;
+    return res;
 }
 
-double deg_to_rad(double x)
+Value deg_to_rad(Value* args, int n)
 {
-    return x/180*PI();
+    Value res;
+    res.type = VAL_NUM;
+
+    if (n != 1 || args[0].type != VAL_NUM)
+    {
+        fprintf(stderr, "deg2rad expects 1 numeric arg\n");
+        return res;
+    }
+    
+    res.number = args[0].number/180*PI().number;
+    return res;
 }
 
-double rad_to_deg(double x)
+Value rad_to_deg(Value* args, int n)
 {
-    return x/PI()*180;
+    Value res;
+    res.type = VAL_NUM;
+
+    if (n != 1 || args[0].type != VAL_NUM)
+    {
+        fprintf(stderr, "rad2deg expects 1 numeric arg\n");
+        return res;
+    }
+
+    res.number = args[0].number/PI().number*180;
+    return res;
+}
+
+Value zero(Value* args, int n)
+{
+    Value res;
+    res.type = VAL_MAT;
+
+    // 2 input
+    if (n != 2 || args[0].type != VAL_NUM || args[1].type != VAL_NUM)
+    {
+        fprintf(stderr, "zero expects 2 numeric arg\n");
+        return res;
+    }
+    printf("I am still fine\n");
+    int rows = args[0].number;
+    int cols = args[1].number;
+
+    int err = 0;
+
+    return zero_mat(rows, cols, &err);
+}
+
+Value ident(Value* args, int n)
+{
+    Value res;
+    res.type = VAL_MAT;
+
+    if (n != 1 || args[0].type != VAL_NUM)
+    {
+        fprintf(stderr, "ident expects 1 numeric arg\n");
+        return res;
+    }
+
+    int err = 0;
+
+    return ident_mat(args[0].number, &err);
+}
+
+Value det(Value* args, int n)
+{
+    Value res;
+    res.type = VAL_MAT;
+
+    if (n != 1 || args[0].type != VAL_MAT)
+    {
+        fprintf(stderr, "det expects 1 matrix arg\n");
+        return res;
+    }
+
+    int err = 0;
+
+    return det_mat(args[0], &err);
+}
+
+Value inv(Value* args, int n)
+{
+    Value res;
+    res.type = VAL_MAT;
+
+    if (n != 1 || args[0].type != VAL_MAT)
+    {
+        fprintf(stderr, "inv expects 1 matrix arg\n");
+        return res;
+    }
+
+    int err = 0;
+
+    return inv_mat(args[0], &err);
 }
 
 DEF_UNARY(sin)
@@ -56,8 +147,8 @@ DEF_UNARY(tan)
 DEF_UNARY(asin)
 DEF_UNARY(acos)
 DEF_UNARY(atan)
-DEF_UNARY(deg_to_rad)
-DEF_UNARY(rad_to_deg)
+// DEF_UNARY(deg_to_rad)
+// DEF_UNARY(rad_to_deg)
 DEF_UNARY(sinh)
 DEF_UNARY(cosh)
 DEF_UNARY(tanh)
@@ -79,8 +170,8 @@ BuiltinEntry builtins[] = {
     {"asin",    builtin_asin,           1, "Inverse sine (result in radians)"},
     {"acos",    builtin_acos,           1, "Inverse cosine (result in radians)"},
     {"atan",    builtin_atan,           1, "Inverse tangent (result in radians)"},
-    {"rad2deg", builtin_rad_to_deg,     1, "Convert Radians to Degree"},
-    {"deg2rad", builtin_deg_to_rad,     1, "Convert Degree to Radians"},
+    {"rad2deg", rad_to_deg,     1, "Convert Radians to Degree"},
+    {"deg2rad", deg_to_rad,     1, "Convert Degree to Radians"},
     {"sinh",    builtin_sinh,           1, "Hyperbolic sine"},
     {"cosh",    builtin_cosh,           1, "Hyperbolic cosine"},
     {"tanh",    builtin_tanh,           1, "Hyperbolic tangent"},
@@ -95,19 +186,40 @@ BuiltinEntry builtins[] = {
     {"sqrt",    builtin_sqrt,           1, "Square root"},
     {"pow",     builtin_pow,            2, "Raise to power (x^y)"},
     {"pi",      PI,                     0, "Mathematical constant 3.14159..."},
+    {"zero",    zero,                   2, "Raise to power (x^y)"},
+    {"ident",   ident,                  1, "Raise to power (x^y)"},
+    {"det",     det,                    1, "Raise to power (x^y)"},
+    {"inv",     inv,                    1, "Raise to power (x^y)"},
     {NULL,      NULL, 0, NULL} // sentinel
 };
 
+Value copy_value(Value val);
 void print_value(Value val, int* err);
-void free_value(Value val);
 Value eval(ASTNode* root, Env* env, int* err);
 Value get_var(const char* name, Env* env, int* err);
 void set_var(const char* name, Value value, Env* env, int* err);
-Value eval_func(const char* name, double* args, int arg_size, int* err);
-
-
+Value eval_func(const char* name, Value* args, int arg_size, int* err);
 
 const Value EMPTY;
+
+Value copy_value(Value val)
+{
+    Value res;
+    res.type = val.type;
+    if (val.type == VAL_NUM)
+    {
+        res.number = val.number;
+    }
+    else if (val.type == VAL_MAT)
+    {
+        res.mat.rows = val.mat.rows;
+        res.mat.cols = val.mat.cols;
+        res.mat.data = cpy_mat(val.mat.data, val.mat.rows, val.mat.cols);
+    }
+
+    return res;
+}
+
 
 void print_value(Value val, int* err)
 {
@@ -117,29 +229,14 @@ void print_value(Value val, int* err)
         printf("Empty value\n");
         break;
     case VAL_NUM:
-        printf("%lf", val.number);
+        printf("%lf\n", val.number);
         break;
     case VAL_MAT:
         print_mat(val, err);
         break;
     default:
         fprintf(stderr, "Value Error: Unknown type\n");
-        err = 1;
-        break;
-    }
-}
-
-void free_value(Value val)
-{
-    switch (val.type)
-    {
-    case VAL_NUM:
-        // free nothing
-        break;
-    case VAL_MAT:
-        free_mat(val.mat.data, val.mat.rows);
-        break;
-    default:
+        *err = 1;
         break;
     }
 }
@@ -189,6 +286,10 @@ Value eval(ASTNode* node, Env* env, int* err)
                 res = add_mat(a, b, err);
                 if (*err) return EMPTY;
                 return res;
+            default:
+                fprintf(stderr, "Value Error: value is empty\n");
+                *err = 1;
+                return EMPTY;
             }
         case TOK_MINUS:
             if (a.type != b.type)
@@ -207,6 +308,10 @@ Value eval(ASTNode* node, Env* env, int* err)
                 res = sub_mat(a, b, err);
                 if (*err) return EMPTY;
                 return res;
+            default:
+                fprintf(stderr, "Value Error: value is empty\n");
+                *err = 1;
+                return EMPTY;
             }
         case TOK_MUL:
             if ((a.type == VAL_MAT && b.type == VAL_NUM) || (b.type == VAL_MAT && a.type == VAL_NUM))
@@ -214,7 +319,11 @@ Value eval(ASTNode* node, Env* env, int* err)
                 // scalar * matrix multiplication
                 if (a.type == VAL_MAT)
                 {
-                    return scalar_mat(a, b, err);
+                    return scalar_mat(a, b);
+                }
+                else
+                {
+                    return scalar_mat(b, a);
                 }
                 
             }
@@ -228,6 +337,10 @@ Value eval(ASTNode* node, Env* env, int* err)
                 res = mul_mat(a, b, err);
                 if (*err) return EMPTY;
                 return res;
+            default:
+                fprintf(stderr, "Value Error: value is empty\n");
+                *err = 1;
+                return EMPTY;
             }
         case TOK_DIV:
             if (a.type == VAL_MAT)
@@ -259,6 +372,10 @@ Value eval(ASTNode* node, Env* env, int* err)
                 res = pow_mat(a, b, err);
                 if (*err) return EMPTY;
                 return res;
+            default:
+                fprintf(stderr, "Value Error: value is empty\n");
+                *err = 1;
+                return EMPTY;
             }
         default:
             return EMPTY;
@@ -277,6 +394,7 @@ Value eval(ASTNode* node, Env* env, int* err)
             }
         }
         a = eval_func(node->func.name, args, node->func.arg_size, err);
+        if (*err) return EMPTY;        
         free(args);
         return a;
     case AST_UNOP:
@@ -290,7 +408,7 @@ Value eval(ASTNode* node, Env* env, int* err)
         case VAL_MAT:
             b.type = VAL_NUM;
             b.number = -1;
-            a = scalar_mat(a, b, err);
+            a = scalar_mat(a, b);
             return a;
         default:
             fprintf(stderr, "Value Error: cannot subtract empty value\n");
@@ -341,7 +459,7 @@ Value get_var(const char* name, Env* env, int* err)
         if (strcmp(env->var[i].name, name) == 0) // if equal strcmp returns 0
         {
             *err = 0;
-            return env->var[i].value;
+            return copy_value(env->var[i].value);
         }
     }
     fprintf(stderr, "Variable error: variable %s not found\n", name);
@@ -374,7 +492,7 @@ void set_var(const char* name, Value value, Env* env, int* err)
     *err = 0;
 }
 
-Value eval_func(const char* name, double* args, int arg_size, int* err)
+Value eval_func(const char* name, Value* args, int arg_size, int* err)
 {
     // compare name with all function name
     for (int i = 0; builtins[i].name != NULL; i++)
@@ -384,12 +502,14 @@ Value eval_func(const char* name, double* args, int arg_size, int* err)
             if (arg_size != builtins[i].arg_size)
             {
                 fprintf(stderr, "Function %s expects %d args, got %d\n", name, builtins[i].arg_size, arg_size);
-                *err = 1;
+                if (err) *err = 1;
                 return EMPTY;
             }
             else
-            {
-                return builtins[i].func(args, arg_size);
+            {   
+                Value res = builtins[i].func(args, arg_size);
+                printf("I am also fine\n");
+                return res;
             }
         }
     }
@@ -449,7 +569,6 @@ int main()
         
         ASTNode* root = parse(&parser, &err);
         if (err) continue;
-        print_ast(root, 0);
 
         if (parser.current_token.type != TOK_EOF) {
             fprintf(stderr, "Syntax error: extra tokens at end of input\n");
@@ -460,10 +579,14 @@ int main()
         if (!err && tok_count != 1)
         {   
             print_value(result, &err);
+
+            if (root->type != AST_ASSIGN)
+            {
+                free_value(result);
+            }
         }
 
         // at the end of a line, free the tokens and ast nodes
-        free_value(result);
         free_tokens(tokens, tok_count);
         free_ast(root);
     }

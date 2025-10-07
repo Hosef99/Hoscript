@@ -11,10 +11,12 @@ const Value EMPTY;
 double** alloc_mat(int rows, int cols)
 {
     double** mat = malloc(rows * sizeof(double*));
-
+    printf("finished malloc\n");
     for (int i = 0; i < rows; i++)
     {
+        printf("about to allocate row no %d\n", i);
         mat[i] = malloc(cols * sizeof(double));
+        printf("finished allocate row no %d\n", i);
     }
 
     return mat;
@@ -27,6 +29,14 @@ void free_mat(double** mat, int rows)
         free(mat[i]);
     }
     free(mat);
+}
+
+void free_value(Value val)
+{
+    if (val.type == VAL_MAT)
+    {
+        free_mat(val.mat.data, val.mat.rows);
+    }
 }
 
 double** cpy_mat(double** mat, int rows, int cols) // whatever is returned, needs to be freed
@@ -64,9 +74,11 @@ void print_mat(Value matrix, int* err)
     printf("]\n\n");
 }
 
-Value zero_mat(int n, int* err)
+Value zero_mat(int rows, int cols, int* err)
 {
-    if (n <= 0)
+
+    printf("just entered\n");
+    if (rows <= 0 || cols <= 0)
     {
         fprintf(stderr, "Matrix Error: dimension of zero matrix must be positive\n");
         *err = 1;
@@ -75,18 +87,19 @@ Value zero_mat(int n, int* err)
 
     Value res;
     res.type = VAL_MAT;
-    res.mat.data = alloc_mat(n, n);
-    res.mat.rows = n;
-    res.mat.cols = n;
+    printf("about to allocate matrix\n");
+    res.mat.data = alloc_mat(rows, cols);
+    res.mat.rows = rows;
+    res.mat.cols = cols;
 
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < rows; i++)
     {
-        for (int j = 0; j < n; j++)
+        for (int j = 0; j < cols; j++)
         {
             res.mat.data[i][j] = 0;
         }
     }
-    
+
     return res;
 }
 
@@ -183,12 +196,13 @@ Value sub_mat(Value val1, Value val2, int* err)
     return res;
 }
 
-Value scalar_mat(Value val, Value scalar, int* err)
+Value scalar_mat(Value val, Value scalar)
 {
     int rows = val.mat.rows;
     int cols = val.mat.cols;
 
     Value res;
+    res.type = VAL_MAT;
     res.mat.rows = rows;
     res.mat.cols = cols;
     res.mat.data = cpy_mat(val.mat.data, rows, cols);
@@ -290,13 +304,17 @@ Value pow_mat(Value val, Value pow, int* err)
 
     for (int i = 0; i < pow.number - 1; i++)
     {
+        Value temp = mat_val;
         mat_val = mul_mat(mat_val, base_val, err);
+        free_value(temp);
     }
     
+    free_value(base_val);
+
     return mat_val;
 }
 
-Value det_mat(Value val, int* err) // using gaussian elimination
+Value det_mat(Value val, int* err) // caller need to free res
 {
     if (val.type != VAL_MAT)
     {
@@ -367,7 +385,7 @@ Value det_mat(Value val, int* err) // using gaussian elimination
     return res;
 }
 
-Value inv_mat(Value val, int* err)
+Value inv_mat(Value val, int* err) // caller must free res
 {
     if (val.type != VAL_MAT)
     {
