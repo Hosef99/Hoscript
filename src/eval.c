@@ -478,6 +478,7 @@ void set_var(const char* name, Value value, Env* env, int* err)
         {
             free_value(env->var[i].value); // so that matrix in the value can be freed
             env->var[i].value = value;
+            return;
         }
     }
 
