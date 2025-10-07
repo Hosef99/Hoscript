@@ -255,6 +255,8 @@ Value eval(ASTNode* node, Env* env, int* err)
         set_var(node->assign.name, a, env, err);
         if (*err) return EMPTY;
         printf("%s = ", node->assign.name);
+        if (a.type == VAL_MAT)
+            printf("\n");
         return a;
     case AST_NUM:
         a.type = VAL_NUM;

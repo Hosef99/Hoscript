@@ -407,7 +407,9 @@ Value inv_mat(Value val, int* err) // caller must free res
         {
             aug[i][j] = val.mat.data[i][j];
         }
-        aug[i][i+n] = 1.0;
+        for (int j = 0; j < n; j++) {
+            aug[i][j+n] = (i == j) ? 1.0 : 0.0;
+        }
     }
     
     // begin rrefing the augmented matrix
