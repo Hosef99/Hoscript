@@ -563,7 +563,6 @@ int main()
         input[strcspn(input, "\n")] = '\0';
         if (strcmp(input, "quit") == 0)
         {
-            printf("\n");
             break;
         }
         else if (strcmp(input, "help") == 0)

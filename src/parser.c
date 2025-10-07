@@ -233,7 +233,6 @@ ASTNode* parse_func(Parser* parser, int* err)
 
 ASTNode* parse_mat(Parser* parser, int* err)
 {
-    int row, col;
     // mat -> LBRACK row (SEMICOLON row)* RBRACK
     next_token(parser);
     int row_cap = 4;
