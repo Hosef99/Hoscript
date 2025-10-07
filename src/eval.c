@@ -163,34 +163,35 @@ DEF_UNARY(sqrt)
 DEF_BINARY(pow)
 
 BuiltinEntry builtins[] = {
-    {"sin",     builtin_sin,            1, "Sine of angle (radians)"},
-    {"cos",     builtin_cos,            1, "Cosine of angle (radians)"},
-    {"tan",     builtin_tan,            1, "Tangent of angle (radians)"},
-    {"asin",    builtin_asin,           1, "Inverse sine (result in radians)"},
-    {"acos",    builtin_acos,           1, "Inverse cosine (result in radians)"},
-    {"atan",    builtin_atan,           1, "Inverse tangent (result in radians)"},
-    {"rad2deg", rad_to_deg,     1, "Convert Radians to Degree"},
-    {"deg2rad", deg_to_rad,     1, "Convert Degree to Radians"},
-    {"sinh",    builtin_sinh,           1, "Hyperbolic sine"},
-    {"cosh",    builtin_cosh,           1, "Hyperbolic cosine"},
-    {"tanh",    builtin_tanh,           1, "Hyperbolic tangent"},
-    {"exp",     builtin_exp,            1, "Exponential function (e^x)"},
-    {"log",     builtin_log,            1, "Natural logarithm (base e)"},
-    {"log10",   builtin_log10,          1, "Logarithm base 10"},
-    {"abs",     builtin_fabs,            1, "Absolute value"},
-    {"floor",   builtin_floor,          1, "Round down to nearest integer"},
-    {"ceil",    builtin_ceil,           1, "Round up to nearest integer"},
-    {"round",   builtin_round,          1, "Round to nearest integer"},
-    {"fmod",    builtin_fmod,           2, "Remainder of division (x mod y)"},
-    {"sqrt",    builtin_sqrt,           1, "Square root"},
-    {"pow",     builtin_pow,            2, "Raise to power (x^y)"},
-    {"pi",      PI,                     0, "Mathematical constant 3.14159..."},
-    {"zero",    zero,                   2, "Raise to power (x^y)"},
-    {"ident",   ident,                  1, "Raise to power (x^y)"},
-    {"det",     det,                    1, "Raise to power (x^y)"},
-    {"inv",     inv,                    1, "Raise to power (x^y)"},
+    {"sin",     builtin_sin,            1, "sin(num): sine of angle"},
+    {"cos",     builtin_cos,            1, "cos(num): cosine of angle"},
+    {"tan",     builtin_tan,            1, "tan(num): tangent of angle"},
+    {"asin",    builtin_asin,           1, "asin(num): inverse sine"},
+    {"acos",    builtin_acos,           1, "acos(num): inverse cosine"},
+    {"atan",    builtin_atan,           1, "atan(num): inverse tangent"},
+    {"rad2deg", rad_to_deg,             1, "rad2deg(rad): convert radians to degrees"},
+    {"deg2rad", deg_to_rad,             1, "deg2rad(deg): convert degrees to radians"},
+    {"sinh",    builtin_sinh,           1, "sinh(num): hyperbolic sine"},
+    {"cosh",    builtin_cosh,           1, "cosh(num): hyperbolic cosine"},
+    {"tanh",    builtin_tanh,           1, "tanh(num): hyperbolic tangent"},
+    {"exp",     builtin_exp,            1, "exp(num): exponential function e^x"},
+    {"log",     builtin_log,            1, "log(num): natural logarithm (base e)"},
+    {"log10",   builtin_log10,          1, "log10(num): logarithm base 10"},
+    {"abs",     builtin_fabs,           1, "abs(num): absolute value"},
+    {"floor",   builtin_floor,          1, "floor(num): round down to nearest integer"},
+    {"ceil",    builtin_ceil,           1, "ceil(num): round up to nearest integer"},
+    {"round",   builtin_round,          1, "round(num): round to nearest integer"},
+    {"fmod",    builtin_fmod,           2, "fmod(x, y): remainder of division x mod y"},
+    {"sqrt",    builtin_sqrt,           1, "sqrt(num): square root"},
+    {"pow",     builtin_pow,            2, "pow(x, y): raise x to power y"},
+    {"pi",      PI,                     0, "pi(): mathematical constant 3.14159"},
+    {"zero",    zero,                   2, "zero(rows, cols): create a zero matrix"},
+    {"ident",   ident,                  1, "ident(dim): create an identity matrix"},
+    {"det",     det,                    1, "det(mat): determinant of a matrix"},
+    {"inv",     inv,                    1, "inv(mat): inverse of a matrix"},
     {NULL,      NULL, 0, NULL} // sentinel
 };
+
 
 Value copy_value(Value val);
 void print_value(Value val, int* err);
@@ -526,8 +527,8 @@ Value eval_func(const char* name, Value* args, int arg_size, int* err)
 
 void print_help() {
     printf("Available commands:\n");
-    printf("  quit   Exit the program\n");
-    printf("  help   Show this message\n\n");
+    printf("  quit   - Exit the program\n");
+    printf("  help   - Show this help message\n\n");
 
     printf("Available functions:\n");
     for (int i = 0; builtins[i].name != NULL; i++) {
@@ -537,7 +538,12 @@ void print_help() {
                builtins[i].description);
     }
 
-    printf("\nOperators: +  -  *  /  ^  =\n");
+    printf("\nOperators: +  -  *  /  ^  =\n\n");
+
+    printf("Matrix syntax:\n");
+    printf("  [a,b,c;d,e,f;g,h,i]\n");
+    printf("  Example: [1,2,3;4,5,6;7,8,9]\n");
+    printf("  Use commas for columns and semicolons for new rows.\n");
 }
 
 
