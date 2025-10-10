@@ -9,12 +9,13 @@
 #define VAR_MAX 100
 
 #define DEF_UNARY(name) \
-Value builtin_##name(Value *args, int n) { \
+Value builtin_##name(Value *args, int n, int* err) { \
     Value res; \
     res.type = VAL_NUM; \
     if (n != 1 || args[0].type != VAL_NUM) { \
         fprintf(stderr, #name " expects 1 numeric arg\n"); \
         res.number = NAN; \
+        *err = 1; \
         return res; \
     } \
     res.number = name(args[0].number); \
@@ -22,12 +23,13 @@ Value builtin_##name(Value *args, int n) { \
 }
 
 #define DEF_BINARY(name) \
-Value builtin_##name(Value *args, int n) { \
+Value builtin_##name(Value *args, int n, int* err) { \
     Value res; \
     res.type = VAL_NUM; \
     if (n != 2 || args[0].type != VAL_NUM || args[1].type != VAL_NUM) { \
         fprintf(stderr, #name " expects 2 numeric args\n"); \
         res.number = NAN; \
+        *err = 1; \
         return res; \
     } \
     res.number = name(args[0].number, args[1].number); \
@@ -43,7 +45,7 @@ Value PI()
     return res;
 }
 
-Value deg_to_rad(Value* args, int n)
+Value deg_to_rad(Value* args, int n, int* err)
 {
     Value res;
     res.type = VAL_NUM;
@@ -51,6 +53,7 @@ Value deg_to_rad(Value* args, int n)
     if (n != 1 || args[0].type != VAL_NUM)
     {
         fprintf(stderr, "deg2rad expects 1 numeric arg\n");
+        *err = 1;
         return res;
     }
     
@@ -58,7 +61,7 @@ Value deg_to_rad(Value* args, int n)
     return res;
 }
 
-Value rad_to_deg(Value* args, int n)
+Value rad_to_deg(Value* args, int n, int* err)
 {
     Value res;
     res.type = VAL_NUM;
@@ -66,6 +69,7 @@ Value rad_to_deg(Value* args, int n)
     if (n != 1 || args[0].type != VAL_NUM)
     {
         fprintf(stderr, "rad2deg expects 1 numeric arg\n");
+        *err = 1;
         return res;
     }
 
@@ -73,7 +77,7 @@ Value rad_to_deg(Value* args, int n)
     return res;
 }
 
-Value zero(Value* args, int n)
+Value zero(Value* args, int n, int* err)
 {
     Value res;
     res.type = VAL_MAT;
@@ -82,17 +86,16 @@ Value zero(Value* args, int n)
     if (n != 2 || args[0].type != VAL_NUM || args[1].type != VAL_NUM)
     {
         fprintf(stderr, "zero expects 2 numeric arg\n");
+        *err = 1;
         return res;
     }
     int rows = args[0].number;
     int cols = args[1].number;
 
-    int err = 0;
-
-    return zero_mat(rows, cols, &err);
+    return zero_mat(rows, cols, err);
 }
 
-Value ident(Value* args, int n)
+Value ident(Value* args, int n, int* err)
 {
     Value res;
     res.type = VAL_MAT;
@@ -100,15 +103,14 @@ Value ident(Value* args, int n)
     if (n != 1 || args[0].type != VAL_NUM)
     {
         fprintf(stderr, "ident expects 1 numeric arg\n");
+        *err = 1;
         return res;
     }
 
-    int err = 0;
-
-    return ident_mat(args[0].number, &err);
+    return ident_mat(args[0].number, err);
 }
 
-Value det(Value* args, int n)
+Value det(Value* args, int n, int* err)
 {
     Value res;
     res.type = VAL_MAT;
@@ -116,15 +118,14 @@ Value det(Value* args, int n)
     if (n != 1 || args[0].type != VAL_MAT)
     {
         fprintf(stderr, "det expects 1 matrix arg\n");
+        *err = 1;
         return res;
     }
 
-    int err = 0;
-
-    return det_mat(args[0], &err);
+    return det_mat(args[0], err);
 }
 
-Value inv(Value* args, int n)
+Value inv(Value* args, int n, int* err)
 {
     Value res;
     res.type = VAL_MAT;
@@ -132,12 +133,11 @@ Value inv(Value* args, int n)
     if (n != 1 || args[0].type != VAL_MAT)
     {
         fprintf(stderr, "inv expects 1 matrix arg\n");
+        *err = 1;
         return res;
     }
 
-    int err = 0;
-
-    return inv_mat(args[0], &err);
+    return inv_mat(args[0], err);
 }
 
 DEF_UNARY(sin)
@@ -509,12 +509,13 @@ Value eval_func(const char* name, Value* args, int arg_size, int* err)
             if (arg_size != builtins[i].arg_size)
             {
                 fprintf(stderr, "Function %s expects %d args, got %d\n", name, builtins[i].arg_size, arg_size);
-                if (err) *err = 1;
+                *err = 1;
                 return EMPTY;
             }
             else
             {   
-                Value res = builtins[i].func(args, arg_size);
+                Value res = builtins[i].func(args, arg_size, err);
+                if (err) return EMPTY;
                 return res;
             }
         }

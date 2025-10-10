@@ -1,0 +1,14 @@
+# Build and binary folders
+/bin/
+/build/
+/obj/
+
+# Compiled files
+*.exe
+*.dll
+*.so
+*.o
+*.obj
+*.pdb
+*.log
+*.tmp

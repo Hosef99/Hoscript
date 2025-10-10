@@ -25,7 +25,7 @@ typedef enum
     EVAL_VARIABLE_ERROR
 } EvalStatus;
 
-typedef Value (*BuiltinFunc)(Value *args, int arg_size);
+typedef Value (*BuiltinFunc)(Value *args, int arg_size, int* err);
 
 typedef struct
 {
