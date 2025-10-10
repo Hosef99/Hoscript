@@ -445,7 +445,9 @@ Value eval(ASTNode* node, Env* env, int* err)
                 a = eval(row->row.elements[j], env, err);
                 if (a.type != VAL_NUM)
                 {
-                    // nEED TO BE NUMBER PLEASE
+                    fprintf(stderr, "Value Error: contents of matrix must be a double\n");
+                    *err = 1;
+                    return EMPTY;
                 }
                 
                 res.mat.data[i][j] = a.number;
