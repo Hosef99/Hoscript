@@ -12,11 +12,13 @@ ASTNode* parse_assign(Parser* parser, int* err);
 ASTNode* parse_expr(Parser* parser, int* err);
 ASTNode* parse_term(Parser* parser, int* err);
 ASTNode* parse_factor(Parser* parser, int* err);
+ASTNode* parse_mul(Parser* parser, int* err);
 ASTNode* parse_power(Parser* parser, int* err);
 ASTNode* parse_base(Parser* parser, int* err);
 ASTNode* parse_func(Parser* parser, int* err);
 ASTNode* parse_mat(Parser* parser, int* err);
 ASTNode* parse_row(Parser* parser, int* err);
+int implicit_mul(Parser* parser);
 
 void next_token(Parser* parser)
 {
@@ -89,18 +91,33 @@ ASTNode* parse_expr(Parser* parser, int* err)
 ASTNode* parse_term(Parser* parser, int* err)
 {
 
-    ASTNode* left = parse_factor(parser, err);
+    ASTNode* left = parse_mul(parser, err);
 
     while (match_token(parser, TOK_MUL, 0) || match_token(parser, TOK_DIV, 0))
     {
         TokenType op = parser->current_token.type;
         next_token(parser);
 
-        ASTNode* right = parse_factor(parser, err);
+        ASTNode* right = parse_mul(parser, err);
 
         ASTNode* new_node = make_op_node(op, left, right);
         left = new_node;
     }
+    return left;
+}
+
+ASTNode* parse_mul(Parser* parser, int* err)
+{
+    ASTNode* left = parse_factor(parser, err);
+    
+    while (implicit_mul(parser))
+    {
+        ASTNode* right = parse_factor(parser, err);
+
+        ASTNode* new_node = make_op_node(TOK_MUL, left, right);
+        left = new_node;
+    }
+
     return left;
 }
 
@@ -388,4 +405,53 @@ void free_ast(ASTNode* node) {
     }
 
     free(node); // finally, free the node itself
+}
+
+int implicit_mul(Parser* parser)
+{
+    TokenType prev = parser->tokens[parser->pos-1].type;
+    TokenType curr = parser->current_token.type;
+
+    switch (prev)
+    {
+    case TOK_NUM:
+        switch (curr)
+        {
+        case TOK_IDENT:
+            return 1;
+        case TOK_LPAREN:
+            return 1;
+        case TOK_LBRACK:
+            return 1;
+        default:
+            return 0;
+        }
+    case TOK_RPAREN:
+        switch (curr)
+        {
+        case TOK_IDENT:
+            return 1;
+        case TOK_LPAREN:
+            return 1;
+        case TOK_LBRACK:
+            return 1;
+        default:
+            return 0;
+        }
+    case TOK_RBRACK:
+        switch (curr)
+        {
+        case TOK_IDENT:
+            return 1;
+        case TOK_LPAREN:
+            return 1;
+        case TOK_LBRACK:
+            return 1;
+        default:
+            return 0;
+        }
+    default:
+        return 0;
+    }
+    return 0;
 }
