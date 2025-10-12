@@ -229,7 +229,7 @@ void print_value(Value val, int* err)
         printf("Empty value\n");
         break;
     case VAL_NUM:
-        printf("%lf\n", val.number);
+        printf("%.15g\n", val.number);
         break;
     case VAL_MAT:
         print_mat(val, err);
