@@ -30,5 +30,6 @@ char* type_to_string(TokenType type);
 void eval_line(Token* tokens, int token_count);
 Token* generate_tokens(const char* input, int* out_count, int* err);
 void print_token(Token token);
+void print_tokens(Token* tokens, int size);
 void free_tokens(Token* tokens, int count);
 #endif
