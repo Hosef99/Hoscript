@@ -2,6 +2,7 @@
 /bin/
 /build/
 /obj/
+/.vscode/
 
 # Compiled files
 *.exe
