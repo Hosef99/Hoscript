@@ -590,7 +590,7 @@ Value calc_func(const char* name, Value* args, int arg_size, int* err)
             else
             {   
                 Value res = builtins[i].func(args, arg_size, err);
-                if (err) return EMPTY;
+                if (*err) return EMPTY;
                 return res;
             }
         }
