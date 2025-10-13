@@ -8,7 +8,6 @@
 
 Token lex_number(const char* input, int* pos, int* err);
 Token lex_identifier(const char* input, int* pos, int* err);
-void free_token(Token* token);
 
 char* type_to_string(TokenType type)
 {
@@ -87,17 +86,37 @@ Token lex_number(const char* input, int* pos, int* err)
     char buffer[64]; // 63 characters including the terminator '\0'
     int index = 0;
     int has_dot = 0;
-    while (isdigit(input[*pos]) || input[*pos] == '.')
+    int has_e = 0;
+    while (isdigit(input[*pos]) || input[*pos] == '.' || input[*pos] == 'e' || input[*pos] == '+' || input[*pos] == '-')
     {
         if (input[*pos] == '.')
         {
             if (has_dot)
             {
-                printf("Number Error: multiple decimal point in number.\n");
+                fprintf(stderr, "Number Error: multiple decimal point in number.\n");
                 *err = 1;
                 return token;
             }
             has_dot = 1;
+        }
+
+        if (input[*pos] == 'e')
+        {
+            if (has_e)
+            {
+                fprintf(stderr, "Number Error: multiple e in number\n");
+                *err = 1;
+                return token;
+            }
+            has_e = 1;
+        }
+
+        if (input[*pos] == '+' || input[*pos] == '-')
+        {
+            if (input[(*pos)-1] != 'e')
+            {
+                break;
+            }
         }
 
         if (index >= 63)
@@ -173,6 +192,15 @@ Token* generate_tokens(const char* input, int* out_count, int* err) {
 void print_token(Token token)
 {
     printf("Type: %s\nName: %s\nValue: %.2lf\n\n", type_to_string(token.type), token.name, token.value);
+}
+
+void print_tokens(Token* tokens, int size)
+{
+    for (int i = 0; i < size; i++)
+    {
+        printf("Token %d\n", i);
+        print_token(tokens[i]);
+    }
 }
 
 void free_tokens(Token* tokens, int count)
