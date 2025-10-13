@@ -35,4 +35,7 @@ typedef struct
     const char* description;
 } BuiltinEntry;
 
+Value eval(ASTNode* node, Env* env, int* err);
+void print_help();
+
 #endif
