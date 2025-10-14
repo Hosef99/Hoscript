@@ -24,6 +24,8 @@ typedef struct
     
 } Value;
 
+extern const Value EMPTY;
+
 double** alloc_mat(int rows, int cols);
 void free_mat(double** mat, int rows);
 void free_value(Value val);

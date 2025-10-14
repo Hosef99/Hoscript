@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>   // printf, scanf
 #include <stdlib.h>  // malloc, free, atof, exit
 #include <string.h>  // strcmp, strdup, strlen
@@ -194,13 +195,10 @@ BuiltinEntry builtins[] = {
 
 
 Value copy_value(Value val);
-void print_value(Value val, int* err);
 Value eval(ASTNode* root, Env* env, int* err);
 Value get_var(const char* name, Env* env, int* err);
 void set_var(const char* name, Value value, Env* env, int* err);
 Value calc_func(const char* name, Value* args, int arg_size, int* err);
-
-const Value EMPTY;
 
 Value copy_value(Value val)
 {

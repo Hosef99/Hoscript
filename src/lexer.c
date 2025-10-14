@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>   // printf, scanf
 #include <stdlib.h>  // malloc, free, atof, exit
 #include <string.h>  // strcmp, strdup, strlen
