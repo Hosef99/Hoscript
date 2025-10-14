@@ -1,15 +1,14 @@
-# Build and binary folders
-/bin/
-/build/
-/obj/
-/.vscode/
+# Ignore build and bin files
+build/
+bin/
 
-# Compiled files
-*.exe
-*.dll
-*.so
-*.o
-*.obj
-*.pdb
-*.log
+compile_commands.json
+
+*.swp
+*.swo
 *.tmp
+*.log
+.cache/
+.clangd/
+
+*~
