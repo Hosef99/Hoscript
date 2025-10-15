@@ -3,9 +3,18 @@ CFLAGS = -Wall -Wextra -std=c11 -Iinclude
 LDFLAGS = -lm
 SRC = $(wildcard src/*.c)
 OBJ = $(patsubst src/%.c, build/%.o, $(SRC))
-TARGET = bin/cal.exe
 
-# Detect OS mkdir command
+# Detect OS for output binary
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+    TARGET = bin/hos
+else ifeq ($(UNAME_S),Darwin)
+    TARGET = bin/hos
+else
+    TARGET = bin/hos.exe
+endif
+
+# Detect OS for mkdir/rm commands
 ifeq ($(OS),Windows_NT)
     MKDIR = if not exist $(1) mkdir $(1)
     RM = rmdir /s /q
@@ -37,3 +46,4 @@ debug: clean $(TARGET)
 
 sanitize: CFLAGS += -fsanitize=address -g
 sanitize: clean $(TARGET)
+
