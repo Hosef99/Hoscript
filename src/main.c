@@ -5,6 +5,16 @@
 
 #define VAR_MAX 100
 
+void clear_screen(void) 
+{
+    #ifdef _WIN32
+        system("cls");
+    #else
+        system("clear");
+    #endif
+}
+
+
 int main()
 {
     char input[256];
@@ -53,6 +63,13 @@ int main()
                 free_value(result);
             }
         }
+
+        if (strcmp(input, "cls") == 0) 
+        {
+            clear_screen();
+            continue;
+        }
+
 
         // at the end of a line, free the tokens and ast nodes
         free_tokens(tokens, tok_count);
