@@ -65,6 +65,23 @@ int main()
             }
         }
 
+        if(strcmp(input, "printvar") == 0)
+        {
+            for (int i = 0; i < env.var_count; i++)
+            {
+                Value result = eval(root, &env, &err);
+                if (!err && tok_count != 1)
+                {   
+                    print_value(result, &err);
+
+                if (root->type != AST_ASSIGN)
+                {
+                    free_value(result);
+                }
+            }
+        }
+        }
+
         if (strcmp(input, "cls") == 0) 
         {
             clear_screen();

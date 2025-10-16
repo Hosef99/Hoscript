@@ -572,6 +572,15 @@ void set_var(const char* name, Value value, Env* env, int* err)
     *err = 0;
 }
 
+// void print_var(Value val, Env* env, int* err)
+// {
+//     for (int i = 0; i < env->var_count; i++)
+//     {
+//         printf("%s = ", env->var[i].name);
+//         printf("%d\n", env->var[i].value);
+//     }
+// }
+
 Value calc_func(const char* name, Value* args, int arg_size, int* err)
 {
     // compare name with all function name

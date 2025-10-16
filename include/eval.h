@@ -38,5 +38,6 @@ typedef struct
 Value eval(ASTNode* node, Env* env, int* err);
 void print_help();
 void print_value(Value val, int* err);
+void print_var(Value val, Env* env, int* err);
 
 #endif
