@@ -1,26 +1,29 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -Iinclude
-LDFLAGS = -lm -lreadline -lhistory
+LDFLAGS = -lm
 SRC = $(wildcard src/*.c)
 OBJ = $(patsubst src/%.c, build/%.o, $(SRC))
 
-# Detect OS for output binary
+# Detect OS
 UNAME_S := $(shell uname -s)
+
 ifeq ($(UNAME_S),Linux)
     TARGET = bin/hos
-else ifeq ($(UNAME_S),Darwin)
+    LDFLAGS += -lreadline -lhistory
+else ifeq ($(UNAME_S),Darwin) # macOS
     TARGET = bin/hos
+    LDFLAGS += -lreadline -lhistory
 else
     TARGET = bin/hos.exe
 endif
 
 # Detect OS for mkdir/rm commands
 ifeq ($(OS),Windows_NT)
-    MKDIR = if not exist $(1) mkdir $(1)
-    RM = rmdir /s /q
+    MKDIR = if not exist "$(1)" mkdir "$(1)"
+    RM = rmdir /s /q "$(1)"
 else
     MKDIR = mkdir -p $(1)
-    RM = rm -rf
+    RM = rm -rf $(1)
 endif
 
 # Default build rule
@@ -36,7 +39,8 @@ build/%.o: src/%.c
 .PHONY: clean run debug sanitize
 
 clean:
-	-$(RM) build bin
+	-$(call RM,build)
+	-$(call RM,bin)
 
 run: $(TARGET)
 	./$(TARGET)
