@@ -6,12 +6,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef _WIN32
 
-#else
-    #include <readline/readline.h>
-    #include <readline/history.h>
-#endif
+#include "compat_readline.h"
+
 #define VAR_MAX 100
 
 void clear_screen(void) 
