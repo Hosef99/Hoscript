@@ -58,8 +58,24 @@ int main()
             free(input);
             continue;
         }
+        else if (strcmp(input, "printvar") == 0) 
+        {
+            if (env.var_count > 0) 
+            {
+                for (int i = 0; i < env.var_count; i++) 
+                {
+                    printf("%s = ", env.var[i].name);
+                    print_value(env.var[i].value, &err);
+                }
+            } 
+            else
+            {
+                printf("No variables defined.\n");
+            }
+            continue; 
+        }
 
-        Token* tokens = generate_tokens(input, &tok_count, &err);
+        Token* tokens = generate_tokens(input, &tok_count, &err); 
         if (err) {
             free(input);
             continue;
@@ -73,7 +89,8 @@ int main()
             continue;
         }
 
-        if (parser.current_token.type != TOK_EOF) {
+        if (parser.current_token.type != TOK_EOF) 
+        {
             fprintf(stderr, "Syntax error: extra tokens at end of input\n");
             free_tokens(tokens, tok_count);
             free_ast(root);
