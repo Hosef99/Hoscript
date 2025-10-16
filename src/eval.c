@@ -576,10 +576,16 @@ void set_var(const char* name, Value value, Env* env, int* err)
 // {
 //     for (int i = 0; i < env->var_count; i++)
 //     {
-//         printf("%s = ", env->var[i].name);
-//         printf("%d\n", env->var[i].value);
+//         if (strcmp(env->var[i].name, name) == 0) // if equal strcmp returns 0
+//         {
+//             *err = 0;
+//             return copy_value(env->var[i].value);
+//         }
 //     }
-// }
+//     fprintf(stderr, "Variable error: variable %s not found\n", name);
+//     *err = 1;
+//     }
+
 
 Value calc_func(const char* name, Value* args, int arg_size, int* err)
 {

@@ -30,30 +30,54 @@ int main()
         printf("> ");
         fgets(input, sizeof(input), stdin);
         input[strcspn(input, "\n")] = '\0';
+
         if (strcmp(input, "quit") == 0)
         {
             break;
         }
-        else if (strcmp(input, "help") == 0)
+
+        if (strcmp(input, "help") == 0) 
         {
             print_help();
             continue;
         }
 
+        if (strcmp(input, "cls") == 0) 
+        {
+            clear_screen();
+            continue;
+        }
+
+        if (strcmp(input, "printvar") == 0) 
+        {
+            if (env.var_count > 0) 
+            {
+                for (int i = 0; i < env.var_count; i++) 
+                {
+                    printf("%s = ", env.var[i].name);
+                    print_value(env.var[i].value, &err);
+                }
+            } 
+            else
+            {
+                printf("No variables defined.\n");
+            }
+            continue; 
+        }
+
         Token* tokens = generate_tokens(input, &tok_count, &err); 
         if (err) continue;
 
-
         Parser parser = {tokens, tok_count, 0, tokens[0]};
-        
         ASTNode* root = parse(&parser, &err);
         if (err) continue;
 
-        if (parser.current_token.type != TOK_EOF) {
+        if (parser.current_token.type != TOK_EOF) 
+        {
             fprintf(stderr, "Syntax error: extra tokens at end of input\n");
             continue;
         }
-        
+
         Value result = eval(root, &env, &err);
         if (!err && tok_count != 1)
         {   
@@ -63,34 +87,13 @@ int main()
             {
                 free_value(result);
             }
-        }
+        }    
 
-        if(strcmp(input, "printvar") == 0)
-        {
-            for (int i = 0; i < env.var_count; i++)
-            {
-                Value result = eval(root, &env, &err);
-                if (!err && tok_count != 1)
-                {   
-                    print_value(result, &err);
-
-                if (root->type != AST_ASSIGN)
-                {
-                    free_value(result);
-                }
-            }
-        }
-        }
-
-        if (strcmp(input, "cls") == 0) 
-        {
-            clear_screen();
-            continue;
-        }
-
-
-        // at the end of a line, free the tokens and ast nodes
         free_tokens(tokens, tok_count);
         free_ast(root);
     }
+
+    return 0;
 }
+
+
