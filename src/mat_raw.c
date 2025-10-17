@@ -45,17 +45,28 @@ double** cpy_mat(double** mat, int rows, int cols, int* err) // whatever is retu
 
 void print_mat(double** mat, int rows, int cols, int* err)
 {
-    if (!mat || rows <= 0 || cols <= 0){
+    if (!mat || rows <= 0 || cols <= 0) {
         fprintf(stderr, "Matrix Error: invalid input\n");
         *err = 1;
         return;
     }
+
+    int max_width = 0;
+    char buffer[64];
+
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            sprintf(buffer, "%g", mat[i][j]);
+            int len = 0;
+            while (buffer[len] != '\0') len++;
+            if (len > max_width) max_width = len;
+        }
+    }
+
     printf("[\n");
-    for (int i = 0; i < rows; i++)
-    {
-        for (int j = 0; j < cols; j++)
-        {
-            printf("%10.4lf ", mat[i][j]);
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            printf("%*g ", max_width, mat[i][j]);
         }
         printf("\n");
     }
