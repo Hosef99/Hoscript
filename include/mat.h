@@ -32,6 +32,7 @@ void free_value(Value val);
 double** cpy_mat(double** mat, int rows, int cols);
 void print_mat(Value matrix, int* err);
 Value zero_mat(int rows, int cols, int* err);
+Value one_mat(int rows, int cols, int* err);
 Value ident_mat(int n, int* err);
 Value add_mat(Value val1, Value val2, int* err);
 Value sub_mat(Value val1, Value val2, int* err);

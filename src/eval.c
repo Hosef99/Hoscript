@@ -96,6 +96,24 @@ Value zero(Value* args, int n, int* err)
     return zero_mat(rows, cols, err);
 }
 
+Value one(Value* args, int n, int* err)
+{
+    Value res;
+    res.type = VAL_MAT;
+
+    // 2 input
+    if (n != 2 || args[0].type != VAL_NUM || args[1].type != VAL_NUM)
+    {
+        fprintf(stderr, "zero expects 2 numeric arg\n");
+        *err = 1;
+        return res;
+    }
+    int rows = args[0].number;
+    int cols = args[1].number;
+
+    return one_mat(rows, cols, err);
+}
+
 Value ident(Value* args, int n, int* err)
 {
     Value res;
@@ -187,6 +205,7 @@ BuiltinEntry builtins[] = {
     {"pow",     builtin_pow,            2, "pow(x, y): raise x to power y"},
     {"pi",      PI,                     0, "pi(): mathematical constant 3.14159"},
     {"zero",    zero,                   2, "zero(rows, cols): create a zero matrix"},
+    {"one",     one,                    2, "one(rows,cols): create an one matrix"},
     {"ident",   ident,                  1, "ident(dim): create an identity matrix"},
     {"det",     det,                    1, "det(mat): determinant of a matrix"},
     {"inv",     inv,                    1, "inv(mat): inverse of a matrix"},

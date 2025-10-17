@@ -98,6 +98,34 @@ Value zero_mat(int rows, int cols, int* err)
     return res;
 }
 
+Value one_mat(int rows, int cols, int* err)
+{
+
+    if (rows <= 0 || cols <= 0)
+    {
+        fprintf(stderr, "Matrix Error: dimension of zero matrix must be positive\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    Value res;
+    res.type = VAL_MAT;
+    res.mat.data = alloc_mat(rows, cols);
+    res.mat.rows = rows;
+    res.mat.cols = cols;
+
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            res.mat.data[i][j] = 1;
+        }
+    }
+
+    return res;
+}
+
+
 Value ident_mat(int n, int* err)
 {
     if (n <= 0)
