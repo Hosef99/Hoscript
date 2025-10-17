@@ -104,7 +104,7 @@ Value one(Value* args, int n, int* err)
     // 2 input
     if (n != 2 || args[0].type != VAL_NUM || args[1].type != VAL_NUM)
     {
-        fprintf(stderr, "zero expects 2 numeric arg\n");
+        fprintf(stderr, "one expects 2 numeric arg\n");
         *err = 1;
         return res;
     }

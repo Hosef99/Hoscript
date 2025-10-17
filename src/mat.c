@@ -103,7 +103,7 @@ Value one_mat(int rows, int cols, int* err)
 
     if (rows <= 0 || cols <= 0)
     {
-        fprintf(stderr, "Matrix Error: dimension of zero matrix must be positive\n");
+        fprintf(stderr, "Matrix Error: dimension of one matrix must be positive\n");
         *err = 1;
         return EMPTY;
     }
