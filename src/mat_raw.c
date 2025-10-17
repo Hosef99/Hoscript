@@ -166,7 +166,7 @@ double** scalar_mat_raw(double** mat, double scalar, int rows, int cols, int* er
         *err = 1;
         return NULL;
     }
-    double** result = cpy_mat(mat, rows, cols);
+    double** result = cpy_mat(mat, rows, cols, err);
 
     if (!result)
     {
@@ -233,14 +233,14 @@ double** pow_mat_raw(double** mat, double power, int rows, int* err)
         return ident_mat_raw(n, err);
     }
     
-    double** base = cpy_mat(mat, n, n);
+    double** base = cpy_mat(mat, n, n, err);
     if (!base) {
         fprintf(stderr, "Matrix Error: invalid input\n");
         *err = 1;
         return NULL;
     }
 
-    double** result = cpy_mat(mat, n, n);
+    double** result = cpy_mat(mat, n, n, err);
     if (!base) {
         fprintf(stderr, "Matrix Error: invalid input\n");
         *err = 1;
@@ -267,7 +267,7 @@ double det_mat_raw(double** mat, int rows, int* err)
 
     int n = rows;
     
-    double** temp = cpy_mat(mat, n, n);
+    double** temp = cpy_mat(mat, n, n, err);
     if (!temp) {
         fprintf(stderr, "Memory Error: allocation failed\n");
         *err = 1;
@@ -328,7 +328,7 @@ double** inv_mat_raw(double** mat, int rows, int* err)
 
     int n = rows;
     
-    double** temp = cpy_mat(mat, n, n);
+    double** temp = cpy_mat(mat, n, n, err);
     if (!temp) {
         fprintf(stderr, "Memory Error: allocation failed\n");
         *err = 1;
