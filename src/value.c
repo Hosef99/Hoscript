@@ -6,7 +6,7 @@ void print_value(Value value, int* err)
 {
     switch (value.type) {
         case VAL_NUM:
-            printf("%.15g", value.number);
+            printf("%.15g\n", value.number);
             break;
         case VAL_MAT:
             print_mat(value.mat.data, value.mat.rows, value.mat.cols, err);
@@ -35,6 +35,9 @@ Value copy_value(Value value, int* err)
             return new;
         case VAL_MAT:
             new.mat.data = cpy_mat(value.mat.data, value.mat.rows, value.mat.cols, err);
+            new.mat.rows = value.mat.rows;
+            new.mat.cols = value.mat.cols;
+            return new;
         default:
             fprintf(stderr, "Value Error: value is empty\n");
             *err = 1;

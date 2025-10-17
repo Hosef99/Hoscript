@@ -65,6 +65,7 @@ void print_mat(double** mat, int rows, int cols, int* err)
 
     printf("[\n");
     for (int i = 0; i < rows; i++) {
+        printf("  ");
         for (int j = 0; j < cols; j++) {
             printf("%*g ", max_width, mat[i][j]);
         }

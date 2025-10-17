@@ -254,7 +254,6 @@ Value det_mat(Value* args, int n, int* err)
 
     Value val = args[0];
 
-    // dimension check, need to be square
     if (val.mat.rows != val.mat.cols)
     {
         *err = 1;
