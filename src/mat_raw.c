@@ -97,6 +97,30 @@ double** zero_mat_raw(int rows, int cols, int* err)
     return result;
 }
 
+double** ones_mat_raw(int rows, int cols, int* err)
+{
+    if (rows <= 0 || cols <= 0) {
+        fprintf(stderr, "Matrix Error: invalid input\n");
+        *err = 1;
+        return NULL;
+    }
+
+    double** result = alloc_mat(rows, cols);
+    if (!result) {
+        fprintf(stderr, "Memory Error: allocation failed\n");
+        *err = 1;
+        return NULL;
+    }
+
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            result[i][j] = 1;
+        }
+    }
+
+    return result;
+}
+
 double** ident_mat_raw(int rows, int* err)
 {
     if (rows <= 0) {

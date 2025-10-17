@@ -6,6 +6,7 @@ void free_mat(double** mat, int rows);
 double** cpy_mat(double** mat, int rows, int cols, int* err);
 void print_mat(double** mat, int rows, int cols, int* err);
 double** zero_mat_raw(int rows, int cols, int* err);
+double** ones_mat_raw(int rows, int cols, int* err);
 double** ident_mat_raw(int rows, int* err);
 double** add_mat_raw(double** mat_a, double** mat_b, int rows, int cols, int* err);
 double** sub_mat_raw(double** mat_a, double** mat_b, int rows, int cols, int* err);
