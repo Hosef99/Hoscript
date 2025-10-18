@@ -13,4 +13,5 @@ compile_commands.json
 
 *~
 .*
+src/test.c
 !/.gitignore
