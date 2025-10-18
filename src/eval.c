@@ -1,13 +1,17 @@
-#include "lexer.h"
-#include "parser.h"
-#include "value.h"
 #define _POSIX_C_SOURCE 200809L
+#define IS_FILE 1
+#define NOT_FILE 0
 #include <stdio.h>   // printf, scanf
 #include <stdlib.h>  // malloc, free, atof, exit
 #include <string.h>  // strcmp, strdup, strlen
 #include <ctype.h>   // isdigit, isalpha, isspace
 #include <math.h>
 
+
+#include "compat_readline.h"
+#include "lexer.h"
+#include "parser.h"
+#include "value.h"
 #include "mat_raw.h"
 #include "mat.h"
 #include "eval.h"
@@ -136,6 +140,15 @@ BuiltinEntry builtins[] = {
     {NULL,      NULL, 0, NULL} // sentinel
 };
 
+void clear_screen(void) 
+{
+#ifdef _WIN32
+    system("cls");
+#else
+    system("clear");
+#endif
+}
+
 Value eval(ASTNode* root, Env* env, int* err);
 Value get_var(const char* name, Env* env, int* err);
 void set_var(const char* name, Value value, Env* env, int* err);
@@ -147,9 +160,6 @@ Value eval_assign(ASTNode* node, Env* env, int* err)
     if (*err) return EMPTY;
     set_var(node->assign.name, a, env, err);
     if (*err) return EMPTY;
-    printf("%s = ", node->assign.name);
-    if (a.type == VAL_MAT)
-        printf("\n");
     return a;
 }
 
@@ -528,21 +538,21 @@ void print_help()
     printf("  Use commas for columns and semicolons for new rows.\n");
 }
 
-Value interpret(const char* input, Env* env, int is_file, int* err)
+void interpret(const char* input, Env* env, int is_file, int* err)
 {
     int tok_count;
     if (input[0] == '\0') {
-        return EMPTY;
+        return;
     }
 
     Token* tokens = generate_tokens(input, &tok_count, err);
-    if (*err) return EMPTY;
+    if (*err) return;
 
     Parser parser = {tokens, tok_count, 0, tokens[0]};
     ASTNode* root = parse(&parser, err);
     if (*err) {
         free_tokens(tokens, tok_count);
-        return EMPTY;
+        return;
     }
 
     if (parser.current_token.type != TOK_EOF) {
@@ -550,18 +560,82 @@ Value interpret(const char* input, Env* env, int is_file, int* err)
         free_tokens(tokens, tok_count);
         free_ast(root);
         *err = 1;
-        return EMPTY;
+        return;
     }
 
     Value result = eval(root, env, err);
     if (*err) {
         free_tokens(tokens, tok_count);
         free_ast(root);
-        return EMPTY;
+        return;
+    }
+    if (!*err && tok_count != 1)
+    {   
+        if (root->type != AST_ASSIGN) {
+            if (!is_file) {
+                print_value(result, err);
+            }
+            free_value(result);
+        }
     }
 
     free_tokens(tokens, tok_count);
     free_ast(root);
+}
 
-    return result;
+void start_repl()
+{
+    Variable vars[VAR_MAX];
+    Env env = {vars, 0};
+    char* input;
+
+    const char* history_file = ".interpreter_history";
+    read_history(history_file);
+
+    while (1) {
+        int err = 0;
+
+        input = readline("> ");
+        if (!input) break;
+
+        add_history(input);
+
+        if (strcmp(input, "quit") == 0) {
+            free(input);
+            break;
+        } 
+        else if (strcmp(input, "help") == 0) {
+            print_help();
+            free(input);
+            continue;
+        } 
+        else if (strcmp(input, "cls") == 0) {
+            clear_screen();
+            free(input);
+            continue;
+        }
+        else if (strcmp(input, "printvar") == 0) 
+        {
+            if (env.var_count > 0) 
+            {
+                for (int i = 0; i < env.var_count; i++) 
+                {
+                    printf("%s = ", env.var[i].name);
+                    print_value(env.var[i].value, &err);
+                }
+            } 
+            else
+            {
+                printf("No variables defined.\n");
+            }
+            continue; 
+        }
+    
+        interpret(input, &env, NOT_FILE, &err);
+
+        free(input);
+    }
+    write_history(history_file);
+
+    printf("\nExiting Hoscript.\n");
 }
