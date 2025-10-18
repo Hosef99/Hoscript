@@ -46,3 +46,21 @@ char* read_file(const char* filename)
     fclose(f);
     return buffer;
 }
+
+int write_file(const char *filename, const char *buffer, size_t size) {
+    FILE *f = fopen(filename, "wb"); // open in binary mode
+    if (!f) {
+        perror("fopen");
+        return -1;
+    }
+
+    size_t written = fwrite(buffer, 1, size, f);
+    if (written != size) {
+        perror("fwrite");
+        fclose(f);
+        return -1;
+    }
+
+    fclose(f);
+    return 0;
+}
