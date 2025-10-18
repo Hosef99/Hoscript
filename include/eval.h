@@ -1,9 +1,8 @@
 #ifndef EVAL_H
 #define EVAL_H
 
-#include "lexer.h"
+#include "value.h"
 #include "parser.h"
-#include "mat.h"
 
 typedef struct
 {
@@ -37,6 +36,5 @@ typedef struct
 
 Value eval(ASTNode* node, Env* env, int* err);
 void print_help();
-void print_value(Value val, int* err);
 
 #endif
