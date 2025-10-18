@@ -1,3 +1,5 @@
+#include "lexer.h"
+#include "parser.h"
 #include "value.h"
 #define _POSIX_C_SOURCE 200809L
 #include <stdio.h>   // printf, scanf
@@ -524,4 +526,42 @@ void print_help()
     printf("  [a,b,c;d,e,f;g,h,i]\n");
     printf("  Example: [1,2,3;4,5,6;7,8,9]\n");
     printf("  Use commas for columns and semicolons for new rows.\n");
+}
+
+Value interpret(const char* input, Env* env, int is_file, int* err)
+{
+    int tok_count;
+    if (input[0] == '\0') {
+        return EMPTY;
+    }
+
+    Token* tokens = generate_tokens(input, &tok_count, err);
+    if (*err) return EMPTY;
+
+    Parser parser = {tokens, tok_count, 0, tokens[0]};
+    ASTNode* root = parse(&parser, err);
+    if (*err) {
+        free_tokens(tokens, tok_count);
+        return EMPTY;
+    }
+
+    if (parser.current_token.type != TOK_EOF) {
+        fprintf(stderr, "Syntax Error: extra tokens at end of input\n");
+        free_tokens(tokens, tok_count);
+        free_ast(root);
+        *err = 1;
+        return EMPTY;
+    }
+
+    Value result = eval(root, env, err);
+    if (*err) {
+        free_tokens(tokens, tok_count);
+        free_ast(root);
+        return EMPTY;
+    }
+
+    free_tokens(tokens, tok_count);
+    free_ast(root);
+
+    return result;
 }
