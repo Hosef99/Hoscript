@@ -1,3 +1,4 @@
+#include "value.h"
 #define _POSIX_C_SOURCE 200809L
 #include "lexer.h"
 #include "parser.h"

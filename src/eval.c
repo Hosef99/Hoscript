@@ -1,3 +1,4 @@
+#include "value.h"
 #define _POSIX_C_SOURCE 200809L
 #include <stdio.h>   // printf, scanf
 #include <stdlib.h>  // malloc, free, atof, exit
@@ -5,6 +6,8 @@
 #include <ctype.h>   // isdigit, isalpha, isspace
 #include <math.h>
 
+#include "mat_raw.h"
+#include "mat.h"
 #include "eval.h"
 
 #define VAR_MAX 100
@@ -78,87 +81,6 @@ Value rad_to_deg(Value* args, int n, int* err)
     return res;
 }
 
-Value zero(Value* args, int n, int* err)
-{
-    Value res;
-    res.type = VAL_MAT;
-
-    // 2 input
-    if (n != 2 || args[0].type != VAL_NUM || args[1].type != VAL_NUM)
-    {
-        fprintf(stderr, "zero expects 2 numeric arg\n");
-        *err = 1;
-        return res;
-    }
-    int rows = args[0].number;
-    int cols = args[1].number;
-
-    return zero_mat(rows, cols, err);
-}
-
-Value one(Value* args, int n, int* err)
-{
-    Value res;
-    res.type = VAL_MAT;
-
-    // 2 input
-    if (n != 2 || args[0].type != VAL_NUM || args[1].type != VAL_NUM)
-    {
-        fprintf(stderr, "one expects 2 numeric arg\n");
-        *err = 1;
-        return res;
-    }
-    int rows = args[0].number;
-    int cols = args[1].number;
-
-    return one_mat(rows, cols, err);
-}
-
-Value ident(Value* args, int n, int* err)
-{
-    Value res;
-    res.type = VAL_MAT;
-
-    if (n != 1 || args[0].type != VAL_NUM)
-    {
-        fprintf(stderr, "ident expects 1 numeric arg\n");
-        *err = 1;
-        return res;
-    }
-
-    return ident_mat(args[0].number, err);
-}
-
-Value det(Value* args, int n, int* err)
-{
-    Value res;
-    res.type = VAL_MAT;
-
-    if (n != 1 || args[0].type != VAL_MAT)
-    {
-        fprintf(stderr, "det expects 1 matrix arg\n");
-        *err = 1;
-        return res;
-    }
-
-    return det_mat(args[0], err);
-}
-
-Value inv(Value* args, int n, int* err)
-{
-    Value res;
-    res.type = VAL_MAT;
-
-    if (n != 1 || args[0].type != VAL_MAT)
-    {
-        fprintf(stderr, "inv expects 1 matrix arg\n");
-        *err = 1;
-        return res;
-    }
-
-    return inv_mat(args[0], err);
-}
-
 DEF_UNARY(sin)
 DEF_UNARY(cos)
 DEF_UNARY(tan)
@@ -204,59 +126,18 @@ BuiltinEntry builtins[] = {
     {"sqrt",    builtin_sqrt,           1, "sqrt(num): square root"},
     {"pow",     builtin_pow,            2, "pow(x, y): raise x to power y"},
     {"pi",      PI,                     0, "pi(): mathematical constant 3.14159"},
-    {"zero",    zero,                   2, "zero(rows, cols): create a zero matrix"},
-    {"one",     one,                    2, "one(rows,cols): create an one matrix"},
-    {"ident",   ident,                  1, "ident(dim): create an identity matrix"},
-    {"det",     det,                    1, "det(mat): determinant of a matrix"},
-    {"inv",     inv,                    1, "inv(mat): inverse of a matrix"},
+    {"zero",    zero_mat,               2, "zero(rows, cols): create a zero matrix"},
+    {"ones",    ones_mat,               2, "one(rows,cols): create an one matrix"},
+    {"ident",   ident_mat,              1, "ident(dim): create an identity matrix"},
+    {"det",     det_mat,                1, "det(mat): determinant of a matrix"},
+    {"inv",     inv_mat,                1, "inv(mat): inverse of a matrix"},
     {NULL,      NULL, 0, NULL} // sentinel
 };
 
-
-Value copy_value(Value val);
 Value eval(ASTNode* root, Env* env, int* err);
 Value get_var(const char* name, Env* env, int* err);
 void set_var(const char* name, Value value, Env* env, int* err);
 Value calc_func(const char* name, Value* args, int arg_size, int* err);
-
-Value copy_value(Value val)
-{
-    Value res;
-    res.type = val.type;
-    if (val.type == VAL_NUM)
-    {
-        res.number = val.number;
-    }
-    else if (val.type == VAL_MAT)
-    {
-        res.mat.rows = val.mat.rows;
-        res.mat.cols = val.mat.cols;
-        res.mat.data = cpy_mat(val.mat.data, val.mat.rows, val.mat.cols);
-    }
-
-    return res;
-}
-
-
-void print_value(Value val, int* err)
-{
-    switch (val.type)
-    {
-    case VAL_EMP:
-        printf("Empty value\n");
-        break;
-    case VAL_NUM:
-        printf("%.15g\n", val.number);
-        break;
-    case VAL_MAT:
-        print_mat(val, err);
-        break;
-    default:
-        fprintf(stderr, "Value Error: Unknown type\n");
-        *err = 1;
-        break;
-    }
-}
 
 Value eval_assign(ASTNode* node, Env* env, int* err)
 {
@@ -345,11 +226,11 @@ Value eval_multiplication(ASTNode* node, Env* env, int* err)
         // scalar * matrix multiplication
         if (a.type == VAL_MAT)
         {
-            return scalar_mat(a, b);
+            return scalar_mat(a, b, err);
         }
         else
         {
-            return scalar_mat(b, a);
+            return scalar_mat(b, a, err);
         }
         
     }
@@ -476,7 +357,7 @@ Value eval_unop(ASTNode* node, Env* env, int* err)
     case VAL_MAT:
         b.type = VAL_NUM;
         b.number = -1;
-        a = scalar_mat(a, b);
+        a = scalar_mat(a, b, err);
         return a;
     default:
         fprintf(stderr, "Value Error: cannot subtract empty value\n");
@@ -496,8 +377,13 @@ Value eval_mat(ASTNode* node, Env* env, int* err)
     res.mat.rows = rows;
     res.mat.cols = cols;
     res.mat.data = alloc_mat(rows, cols);
+    if (!res.mat.data) {
+        fprintf(stderr, "Memory Error: allocation failed\n");
+        *err = 1;
+        return EMPTY;
+    }
 
-    for (int i = 0; i < rows; i++) // there will be many bugs here please notice ????????
+    for (int i = 0; i < rows; i++) 
     {
         row = node->mat.matrix[i];
         if (row->row.cols != cols)
@@ -557,7 +443,7 @@ Value get_var(const char* name, Env* env, int* err)
         if (strcmp(env->var[i].name, name) == 0) // if equal strcmp returns 0
         {
             *err = 0;
-            return copy_value(env->var[i].value);
+            return copy_value(env->var[i].value, err);
         }
     }
     fprintf(stderr, "Variable error: variable %s not found\n", name);

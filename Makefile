@@ -1,7 +1,15 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -Iinclude
 LDFLAGS = -lm
+
+# Entry point (default to main.c, can override with MAINFILE)
+MAINFILE ?= main.c
+
+# Source files: all .c except main.c/test.c, plus selected entry point
 SRC = $(wildcard src/*.c)
+SRC := $(filter-out src/main.c src/test.c, $(SRC))
+SRC += src/$(MAINFILE)
+
 OBJ = $(patsubst src/%.c, build/%.o, $(SRC))
 
 # Detect OS
@@ -50,4 +58,3 @@ debug: clean $(TARGET)
 
 sanitize: CFLAGS += -fsanitize=address -g
 sanitize: clean $(TARGET)
-
