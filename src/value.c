@@ -2,11 +2,11 @@
 #include "value.h"
 #include "mat_raw.h"
 
-void print_value(Value value, int* err)
+void print_value(Value value, const char* end, int* err)
 {
     switch (value.type) {
         case VAL_NUM:
-            printf("%.15g\n", value.number);
+            printf("%.15g%s", value.number, end);
             break;
         case VAL_MAT:
             print_mat(value.mat.data, value.mat.rows, value.mat.cols, err);

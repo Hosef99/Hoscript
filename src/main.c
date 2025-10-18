@@ -6,7 +6,8 @@ int main(int argc, char* argv[])
         start_repl();
     }
     else {
-
+        int err = 0;
+        run_file(argv[1], &err);
     }
     
 }

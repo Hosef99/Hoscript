@@ -15,6 +15,7 @@
 #include "mat_raw.h"
 #include "mat.h"
 #include "eval.h"
+#include "file.h"
 
 #define VAR_MAX 100
 
@@ -46,6 +47,17 @@ Value builtin_##name(Value *args, int n, int* err) { \
     return res; \
 }
 
+Value print(Value* args, int n, int* err)
+{
+    Value res;
+    res.type = VAL_EMP;
+    char* end = "\n";
+
+    for (int i = 0; i < n; i++) {
+        print_value(args[i], end, err);
+    }
+    return res;
+}
 
 Value PI()
 {
@@ -110,6 +122,7 @@ DEF_UNARY(sqrt)
 DEF_BINARY(pow)
 
 BuiltinEntry builtins[] = {
+    {"print", print, -1, "print(val1, val2, ...): prints values"},
     {"sin",     builtin_sin,            1, "sin(num): sine of angle"},
     {"cos",     builtin_cos,            1, "cos(num): cosine of angle"},
     {"tan",     builtin_tan,            1, "tan(num): tangent of angle"},
@@ -496,6 +509,12 @@ Value calc_func(const char* name, Value* args, int arg_size, int* err)
     {
         if (strcmp(builtins[i].name, name) == 0) // 0 is equal
         {
+            if (builtins[i].arg_size == -1)
+            {
+                Value res = builtins[i].func(args, arg_size, err);
+                if (*err) return EMPTY;
+                return res;
+            }
             if (arg_size != builtins[i].arg_size)
             {
                 fprintf(stderr, "Function %s expects %d args, got %d\n", name, builtins[i].arg_size, arg_size);
@@ -573,7 +592,7 @@ void interpret(const char* input, Env* env, int is_file, int* err)
     {   
         if (root->type != AST_ASSIGN) {
             if (!is_file) {
-                print_value(result, err);
+                print_value(result, "\n", err);
             }
             free_value(result);
         }
@@ -621,7 +640,7 @@ void start_repl()
                 for (int i = 0; i < env.var_count; i++) 
                 {
                     printf("%s = ", env.var[i].name);
-                    print_value(env.var[i].value, &err);
+                    print_value(env.var[i].value, "\n", &err);
                 }
             } 
             else
@@ -638,4 +657,25 @@ void start_repl()
     write_history(history_file);
 
     printf("\nExiting Hoscript.\n");
+}
+
+void run_file(const char* filename, int* err)
+{
+    char* source = read_file(filename);
+    if (*err || !source) {
+        fprintf(stderr, "Error: could not read file '%s'\n", filename);
+        return;
+    }
+
+    char* line = strtok(source, "\n");
+    Variable vars[VAR_MAX];
+    Env env = {vars, 0};
+
+    while (line != NULL) {
+        interpret(line, &env, 1, err);
+        if (*err) break;
+        line = strtok(NULL, "\n");
+    }
+
+    free(source);
 }
