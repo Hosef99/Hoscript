@@ -84,6 +84,7 @@ int main()
 
         Parser parser = {tokens, tok_count, 0, tokens[0]};
         ASTNode* root = parse(&parser, &err);
+        print_ast(root,0);
         if (err) {
             free_tokens(tokens, tok_count);
             free(input);
