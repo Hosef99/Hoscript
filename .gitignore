@@ -8,6 +8,7 @@ compile_commands.json
 *.swo
 *.tmp
 *.log
+*.hos
 .cache/
 .clangd/
 
@@ -15,3 +16,4 @@ compile_commands.json
 .*
 src/test.c
 !/.gitignore
+

@@ -432,7 +432,7 @@ Value eval_index(ASTNode* node, Env* env, int* err)
     {
         if (i < 0 || i >= left.mat.cols)
         {
-            fprintf(stderr, "Index out of range.\n");
+            fprintf(stderr, "Index Error: index out of range.\n");
             *err = 1;
             return EMPTY;
         }
@@ -441,7 +441,7 @@ Value eval_index(ASTNode* node, Env* env, int* err)
     {
         if (i < 0 || i >= left.mat.rows)
         {
-            fprintf(stderr, "Index out of range.\n");
+            fprintf(stderr, "Index Error: index out of range.\n");
             *err = 1;
             return EMPTY;
         }
@@ -453,7 +453,7 @@ Value eval_index(ASTNode* node, Env* env, int* err)
     {   
         if (i < 0 || i >= left.mat.cols)
         {
-            fprintf(stderr, "Index out of range.\n");
+            fprintf(stderr, "Index Error: index out of range.\n");
             *err = 1;
             return EMPTY;
         }
@@ -461,7 +461,7 @@ Value eval_index(ASTNode* node, Env* env, int* err)
         {   
             if (i < 0 || i >= left.mat.rows)
             {
-                fprintf(stderr, "Row index out of range.\n");
+                fprintf(stderr, "Index Error: row index out of range.\n");
                 *err = 1;
                 return EMPTY;
             }
@@ -538,7 +538,7 @@ void assign_to_index(ASTNode* node, Value rhs, Env* env, int* err)
 
         if (i < 0 || i >= mat.mat.rows || j < 0 || j >= mat.mat.cols) // struct { int rows; int cols; double** data; }mat
         {
-            fprintf(stderr, "Index out of range.\n");
+            fprintf(stderr, "Index Error: index out of range.\n");
             *err = 1;
             return;
         }
@@ -558,7 +558,7 @@ void assign_to_index(ASTNode* node, Value rhs, Env* env, int* err)
 
         if (j < 0 || j >= mat.mat.cols)
         {
-            fprintf(stderr, "Index out of range.\n");
+            fprintf(stderr, "Index Error: index out of range.\n");
             *err = 1;
             return;
         }
