@@ -11,14 +11,15 @@ This project is a calculator that is capable of doing basic operations.
 
 ## Grammar
 ```
-parse -> expr | assign
-assign -> IDENT ASSIGN expr
-expr -> term ((PLUS | MINUS) term)*
+parse -> expr EOF
+a̶s̶s̶i̶g̶n̶ -̶> I̶D̶E̶N̶T̶ A̶S̶S̶I̶G̶N̶ e̶x̶p̶r̶
+expr -> term ((PLUS | MINUS) term)*| (IDENT | postfix) ASSIGN expr
 term -> mul ((MUL | DIV) mul)*
 mul -> factor (IMPLICIT_MUL factor)*
 factor -> (PLUS | MINUS)* power 
-power -> base (POW factor)*
-base -> NUM | func | LPAREN expr RPARAN | mat
+power -> postfix (POW factor)?
+postfix  → base (LBRACK expr RBRACK)*
+base -> NUM | IDENT | func | LPAREN expr RPARAN | mat
 func -> IDENT LPARAN (expr (COMMA expr)*)? RPARAN
 mat -> LBRACK row (SEMICOLON row)* RBRACK
 row -> expr (COMMA expr)*

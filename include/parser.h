@@ -1,7 +1,9 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "lexer.h"
+#include "lexer.h"  
+
+typedef struct ASTNode ASTNode;
 
 typedef enum
 {
@@ -12,15 +14,21 @@ typedef enum
     AST_ASSIGN,
     AST_FUNC,
     AST_ROW,
-    AST_MAT
+    AST_MAT,
+    AST_INDEX
 } ASTNodeType;
 
 typedef struct ASTNode {
     ASTNodeType type;
+    struct ASTNode* parent;
     union
     {
         double value;
         char* name;
+        struct {
+            TokenType op;
+            struct ASTNode* right;
+        } unary;
         struct
         {
             TokenType op;
@@ -28,8 +36,8 @@ typedef struct ASTNode {
             struct ASTNode* right;
         } binary;
         struct {         // assignment
-            char* name;  // variable name
-            struct ASTNode* expr;
+            ASTNode* left;
+            ASTNode* expr;
         } assign;
         struct          // function
         {

@@ -224,7 +224,7 @@ double** scalar_mat_raw(double** mat, double scalar, int rows, int cols, int* er
 
 double** mul_mat_raw(double** mat_a, double** mat_b, int rows_a, int cols_a, int cols_b, int* err)
 {
-    if (!mat_a || mat_b || rows_a <= 0 || cols_a <= 0 || cols_b <= 0)
+    if (!mat_a || !mat_b || rows_a <= 0 || cols_a <= 0 || cols_b <= 0)
     {
         fprintf(stderr, "Matrix Error: invalid input\n");
         *err = 1;
