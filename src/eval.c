@@ -456,22 +456,77 @@ Value eval_index(ASTNode* node, Env* env, int* err)
 
     int i = (int)index.number; // make sure its integer instead of double
 
+    if (left.mat.rows == 1)
+    {
+        if (i < 0 || i >= left.mat.cols)
+        {
+            fprintf(stderr, "Index out of range.\n");
+            *err = 1;
+            return EMPTY;
+        }
+    }
+    else
+    {
+        if (i < 0 || i >= left.mat.rows)
+        {
+            fprintf(stderr, "Index out of range.\n");
+            *err = 1;
+            return EMPTY;
+        }
+    }
+
     Value v;
-    if (node->binary.left->type == AST_INDEX) // Nested index (e.g. A[1][2])
-    {
-        v.type = VAL_NUM;
-        v.number = left.mat.data[0][i];  
+
+    if (left.mat.rows == 1)
+    {   
+        if (i < 0 || i >= left.mat.cols)
+        {
+            fprintf(stderr, "Index out of range.\n");
+            *err = 1;
+            return EMPTY;
+        }
+        if (node->parent && node->parent->type == AST_INDEX) // Detect if this node is *part of a larger AST_INDEX* (means we're inside a nested a[0][x])
+        {   
+            if (i < 0 || i >= left.mat.rows)
+            {
+                fprintf(stderr, "Row index out of range.\n");
+                *err = 1;
+                return EMPTY;
+            }
+            v.type = VAL_MAT;
+            v.mat.rows = 1;
+            v.mat.cols = left.mat.cols;
+            v.mat.data = malloc(sizeof(double*));
+            v.mat.data[0] = malloc(sizeof(double) * v.mat.cols);
+            for (int c = 0; c < v.mat.cols; c++)
+                v.mat.data[0][c] = left.mat.data[0][c];
+        }
+        else
+        {
+            v.type = VAL_NUM;
+            v.number = left.mat.data[0][i];
+        }
     }
-    else // if (node->binary.left->type == AST_IDENT) Single index (e.g. A[1])
+
+    else
     {
-        v.type = VAL_MAT;
-        v.mat.rows = 1;
-        v.mat.cols = left.mat.cols;
-        v.mat.data = malloc(sizeof(double*));
-        v.mat.data[0] = malloc(sizeof(double) * v.mat.cols);
-        for (int c = 0; c < v.mat.cols; c++)
-            v.mat.data[0][c] = left.mat.data[i][c];
+        if (!(node->parent && node->parent->type == AST_INDEX))
+        {
+            v.type = VAL_MAT;
+            v.mat.rows = 1;
+            v.mat.cols = left.mat.cols;
+            v.mat.data = malloc(sizeof(double*));
+            v.mat.data[0] = malloc(sizeof(double) * v.mat.cols);
+            for (int c = 0; c < v.mat.cols; c++)
+                v.mat.data[0][c] = left.mat.data[i][c];
+        }
+        else
+        {
+            v.type = VAL_NUM;
+            v.number = left.mat.data[i][0];
+        }
     }
+
     return v;
 }
 

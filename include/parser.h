@@ -20,6 +20,7 @@ typedef enum
 
 typedef struct ASTNode {
     ASTNodeType type;
+    struct ASTNode* parent;
     union
     {
         double value;

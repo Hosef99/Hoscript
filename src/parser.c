@@ -68,6 +68,10 @@ static ASTNode* make_index_node(ASTNode* left, ASTNode* index)  // Creates an in
     node->type = AST_INDEX;
     node->binary.left = left; // "A"
     node->binary.right = index; // '3'
+
+    left->parent = node;
+    index->parent = node;
+
     return node;
 }
 
@@ -377,6 +381,15 @@ void print_ast(ASTNode* node, int indent)
             print_ast(node->binary.left, indent + 1);
             print_ast(node->binary.right, indent + 1);
             break;
+        case AST_INDEX:
+            printf("INDEX:\n");
+            for (int i = 0; i < indent + 1; i++) printf("  ");
+            printf("Left:\n");
+            print_ast(node->binary.left, indent + 2);
+            for (int i = 0; i < indent + 1; i++) printf("  ");
+            printf("Right:\n");
+            print_ast(node->binary.right, indent + 2);
+            break;
         case AST_UNOP:
             printf("UNOP: %d\n", node->unary.op);
             print_ast(node->unary.right, indent + 1);
@@ -428,6 +441,7 @@ void free_ast(ASTNode* node)
             break;
 
         case AST_BINOP:
+        case AST_INDEX:
             free_ast(node->binary.left);
             free_ast(node->binary.right);
             break;
