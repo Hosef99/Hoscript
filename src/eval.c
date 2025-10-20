@@ -138,17 +138,27 @@ Value eval(ASTNode* root, Env* env, int* err);
 Value get_var(const char* name, Env* env, int* err);
 void set_var(const char* name, Value value, Env* env, int* err);
 Value calc_func(const char* name, Value* args, int arg_size, int* err);
+void assign_to_index(ASTNode* node, Value rhs, Env* env, int* err);
 
 Value eval_assign(ASTNode* node, Env* env, int* err)
 {
-    Value a = eval(node->assign.expr, env, err);
-    if (*err) return EMPTY;
-    set_var(node->assign.name, a, env, err);
-    if (*err) return EMPTY;
-    printf("%s = ", node->assign.name);
-    if (a.type == VAL_MAT)
-        printf("\n");
-    return a;
+    Value rhs = eval(node->assign.expr, env, err);
+
+    if (node->assign.left->type == AST_IDENT)
+    {
+        set_var(node->assign.left->name, rhs, env, err);
+        return rhs;
+    }
+
+    else if (node->assign.left->type == AST_INDEX)
+    {
+        assign_to_index(node->assign.left, rhs, env, err);
+        return rhs;
+    }
+
+    fprintf(stderr, "Invalid assignment target.\n");
+    *err = 1;
+    return EMPTY;
 }
 
 Value eval_addition(ASTNode* node, Env* env, int* err)
@@ -347,23 +357,18 @@ Value eval_func(ASTNode* node, Env* env, int* err)
 
 Value eval_unop(ASTNode* node, Env* env, int* err)
 {
-    Value a = eval(node->binary.right, env, err);
-    Value b;
-    switch (a.type)
+    Value val = eval(node->unary.right, env, err);
+    if (*err) return EMPTY;
+
+    if (node->unary.op == TOK_MINUS)
     {
-    case VAL_NUM:
-        a.number = -a.number;
-        return a;
-    case VAL_MAT:
-        b.type = VAL_NUM;
-        b.number = -1;
-        a = scalar_mat(a, b, err);
-        return a;
-    default:
-        fprintf(stderr, "Value Error: cannot subtract empty value\n");
-        *err = 1;
-        return EMPTY;
+        if (val.type == VAL_NUM)
+            val.number = -val.number;
+        else
+            fprintf(stderr, "Type Error: unary minus only supports numbers\n");
     }
+
+    return val;
 }
 
 Value eval_mat(ASTNode* node, Env* env, int* err)
@@ -409,6 +414,105 @@ Value eval_mat(ASTNode* node, Env* env, int* err)
     return res;
 }
 
+Value eval_index(ASTNode* node, Env* env, int* err)
+{
+    Value left = eval(node->binary.left, env, err);
+    Value index = eval(node->binary.right, env, err);
+
+    if (left.type != VAL_MAT || index.type != VAL_NUM)
+    {
+        fprintf(stderr, "TypeError: invalid indexing.\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    int i = (int)index.number; // make sure its integer instead of double
+
+    Value v;
+    if (node->binary.left->type == AST_INDEX) // Nested index (e.g. A[1][2])
+    {
+        v.type = VAL_NUM;
+        v.number = left.mat.data[0][i];  
+    }
+    else // if (node->binary.left->type == AST_IDENT) Single index (e.g. A[1])
+    {
+        v.type = VAL_MAT;
+        v.mat.rows = 1;
+        v.mat.cols = left.mat.cols;
+        v.mat.data = malloc(sizeof(double*));
+        v.mat.data[0] = malloc(sizeof(double) * v.mat.cols);
+        for (int c = 0; c < v.mat.cols; c++)
+            v.mat.data[0][c] = left.mat.data[i][c];
+    }
+    return v;
+}
+
+void assign_to_index(ASTNode* node, Value rhs, Env* env, int* err)
+{
+    Value index = eval(node->binary.right, env, err); // At the right side, binary.right should be a double type index at this point but its still havent evaluate that it is column or row
+    if (index.type != VAL_NUM)
+    {
+        fprintf(stderr, "Index must be numeric.\n");
+        *err = 1;
+        return;
+    }
+    int j = (int)index.number; // make sure its integer instead of double
+
+    if (node->binary.left->type == AST_INDEX) // At the left side is another A[i] , so we have something like A[i][j] , then we can consider i = rows , j = cols in this condition
+    {
+        ASTNode* left_index = node->binary.left;
+        Value row_index = eval(left_index->binary.right, env, err); // can look as eval(node->binary.left->binary.right, ...)
+        if (row_index.type != VAL_NUM)
+        {
+            fprintf(stderr, "Index must be numeric.\n");
+            *err = 1;
+            return;
+        }
+        int i = (int)row_index.number; // same, make sure its integer
+
+        // base variable
+        ASTNode* ident_node = left_index->binary.left; // Go to the bottom left of tree to get the AST_IDENT
+        Value mat = get_var(ident_node->name, env, err); // Get the actual matrix variable "A"
+
+        if (mat.type != VAL_MAT)
+        {
+            fprintf(stderr, "Cannot index non-matrix.\n");
+            *err = 1;
+            return;
+        }
+
+        if (i < 0 || i >= mat.mat.rows || j < 0 || j >= mat.mat.cols) // struct { int rows; int cols; double** data; }mat
+        {
+            fprintf(stderr, "Index out of range.\n");
+            *err = 1;
+            return;
+        }
+
+        mat.mat.data[i][j] = rhs.number;  // assign desired number to the particular position
+        set_var(ident_node->name, mat, env, err); // update environment
+    }
+    else if (node->binary.left->type == AST_IDENT) // At the left side, we directly get only IDENT(A) , so it is only A[j] (j = cols)
+    {
+        Value mat = get_var(node->binary.left->name, env, err);
+        if (mat.type != VAL_MAT)
+        {
+            fprintf(stderr, "Cannot index non-matrix.\n");
+            *err = 1;
+            return;
+        }
+
+        if (j < 0 || j >= mat.mat.cols)
+        {
+            fprintf(stderr, "Index out of range.\n");
+            *err = 1;
+            return;
+        }
+
+        mat.mat.data[0][j] = rhs.number; // only access the first row and assign the value of specific column , doesnt matter if the row is more than 1
+        set_var(node->binary.left->name, mat, env, err);
+    }
+}
+
 Value eval(ASTNode* node, Env* env, int* err)
 {
     Value a;
@@ -430,6 +534,9 @@ Value eval(ASTNode* node, Env* env, int* err)
         return eval_unop(node, env, err);
     case AST_MAT:
         return eval_mat(node, env, err);
+    case AST_INDEX:
+        return eval_index(node, env, err);
+
     default:
         return EMPTY;
         break;
