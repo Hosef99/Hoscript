@@ -570,8 +570,7 @@ void assign_to_index(ASTNode* node, Value rhs, Env* env, int* err)
             *err = 1;
             return;
         }
-
-        mat.mat.data[i][j] = rhs.number;  // assign desired number to the particular position
+mat.mat.data[i][j] = rhs.number;  // assign desired number to the particular position
         set_var(ident_node->name, mat, env, err); // update environment
     }
     else if (node->binary.left->type == AST_IDENT) // At the left side, we directly get only IDENT(A) , so it is only A[j] (j = cols)
@@ -751,6 +750,7 @@ void interpret(const char* input, Env* env, int is_file, int* err)
     if (*err) {
         free_tokens(tokens, tok_count);
         free_ast(root);
+<<<<<<< HEAD
         return;
     }
     if (!*err && tok_count != 1)
@@ -761,10 +761,25 @@ void interpret(const char* input, Env* env, int is_file, int* err)
             }
             free_value(result);
         }
+||||||| parent of ad60aa4 (merged)
+        return EMPTY;
+=======
+        return;
+    }
+    if (!*err && tok_count != 1)
+    {   
+        if (root->type != AST_ASSIGN) {
+            if (!is_file) {
+                print_value(result, err);
+            }
+            free_value(result);
+        }
+>>>>>>> ad60aa4 (merged)
     }
 
     free_tokens(tokens, tok_count);
     free_ast(root);
+<<<<<<< HEAD
 }
 
 void start_repl()
@@ -843,4 +858,66 @@ void run_file(const char* filename, int* err)
     }
 
     free(source);
+||||||| parent of ad60aa4 (merged)
+
+    return result;
+=======
+}
+
+void start_repl()
+{
+    Variable vars[VAR_MAX];
+    Env env = {vars, 0};
+    char* input;
+
+    const char* history_file = ".interpreter_history";
+    read_history(history_file);
+
+    while (1) {
+        int err = 0;
+
+        input = readline("> ");
+        if (!input) break;
+
+        add_history(input);
+
+        if (strcmp(input, "quit") == 0) {
+            free(input);
+            break;
+        } 
+        else if (strcmp(input, "help") == 0) {
+            print_help();
+            free(input);
+            continue;
+        } 
+        else if (strcmp(input, "cls") == 0) {
+            clear_screen();
+            free(input);
+            continue;
+        }
+        else if (strcmp(input, "printvar") == 0) 
+        {
+            if (env.var_count > 0) 
+            {
+                for (int i = 0; i < env.var_count; i++) 
+                {
+                    printf("%s = ", env.var[i].name);
+                    print_value(env.var[i].value, &err);
+                }
+            } 
+            else
+            {
+                printf("No variables defined.\n");
+            }
+            continue; 
+        }
+    
+        interpret(input, &env, NOT_FILE, &err);
+
+        free(input);
+    }
+    write_history(history_file);
+
+    printf("\nExiting Hoscript.\n");
+>>>>>>> ad60aa4 (merged)
 }
