@@ -1,318 +1,368 @@
 #define _POSIX_C_SOURCE 200809L
-#include <stdio.h>   // printf, scanf
-#include <stdlib.h>  // malloc, free, atof, exit
-#include <string.h>  // strcmp, strdup, strlen
-#include <ctype.h>   // isdigit, isalpha, isspace
-// #include "parser.h"
-
+#include <stdio.h> // printf, scanf
+#include <stdlib.h> // calloc, free, atof, exit 
+#include <string.h> // strcmp, strdup, strlen
+#include <ctype.h> // isdigit, isalpha, isspace
 #include "parser.h"
+#include "value.h"
 
-void next_token(Parser* parser);
-int match_token(Parser* parser, TokenType type, int look_ahead);
-ASTNode* parse_assign(Parser* parser, int* err);
-ASTNode* parse_expr(Parser* parser, int* err);
-ASTNode* parse_term(Parser* parser, int* err);
-ASTNode* parse_factor(Parser* parser, int* err);
-ASTNode* parse_mul(Parser* parser, int* err);
-ASTNode* parse_power(Parser* parser, int* err);
-ASTNode* parse_base(Parser* parser, int* err);
-ASTNode* parse_func(Parser* parser, int* err);
-ASTNode* parse_mat(Parser* parser, int* err);
+ASTNode* parse_expr(Parser* parser, int* err); 
+ASTNode* parse_term(Parser* parser, int* err); 
+ASTNode* parse_factor(Parser* parser, int* err); 
+ASTNode* parse_mul(Parser* parser, int* err); 
+ASTNode* parse_power(Parser* parser, int* err); 
+ASTNode* parse_base(Parser* parser, int* err); 
+ASTNode* parse_func(Parser* parser, int* err); 
+ASTNode* parse_mat(Parser* parser, int* err); 
 ASTNode* parse_row(Parser* parser, int* err);
+ASTNode* parse_postfix(Parser* parser, int* err); 
 int implicit_mul(Parser* parser);
 
-void next_token(Parser* parser)
+static Token peek(Parser* parser, int offset) // offset tells the parser how many tokens ahead it should look 
 {
-    parser->current_token = parser->tokens[++(parser->pos)];
+    int pos = parser->pos + offset; // offset = 0 , remain position | offset = 1 , next position | offset = 2 , next two position | offset = -1 , previous position
+    if (pos >= parser->num_tokens) // while position reach last token | handle condition when u call peek(parser, "5") while there are only "4" tokens
+        return (Token){TOK_EOF, 0, NULL}; // return EOF
+    return parser->tokens[pos]; // return the token at specific position
 }
 
-int match_token(Parser* parser, TokenType type, int look_ahead)
+static void advance(Parser* parser) // next_token
 {
-    return (parser->tokens[parser->pos+look_ahead].type == type);
+    if (parser->pos < parser->num_tokens) // checking validation
+        parser->pos++; // next position
+    parser->current_token = peek(parser, 0); // ni
 }
 
-ASTNode* make_op_node(TokenType op, ASTNode* left, ASTNode* right)
+static int match(Parser* parser, TokenType type) // match current token type
 {
-    ASTNode* node = malloc(sizeof(ASTNode)); // free all ast node
+    return parser->current_token.type == type; // see whether return 0 or 1 (conditions)
+}
 
-    node->type = AST_BINOP;
+static int look_ahead(Parser* parser, TokenType type, int n) // match next token type (e.g. after "func", call look_ahead(parser, TOK_LPAREN, 1) which should be returning 1 otherwise it can't be a function)
+{
+    return peek(parser, n).type == type; // ni
+}
+
+static ASTNode* make_op_node(TokenType op, ASTNode* left, ASTNode* right) // didn't change
+{
+    ASTNode* node = calloc(1, sizeof(ASTNode)); // Allocate memory for 1 node and initialize all data to 0 or NULL
+    node->type = AST_BINOP; 
     node->binary.op = op;
     node->binary.left = left;
     node->binary.right = right;
     return node;
 }
 
-ASTNode* parse(Parser* parser, int* err)
+static ASTNode* make_unary_node(TokenType op, ASTNode* right) // will be called in parse_factor() if (sign == -1)
 {
-    // need to do some filtering, look ahead for second token 
-    if (match_token(parser, TOK_IDENT, 0)) // identifier
-    {   
-        if (match_token(parser, TOK_ASSIGN, 1)) // look ahead, be careful of spaces
-        {
-            return parse_assign(parser, err);
-        }
-    }
-    
-    return parse_expr(parser, err);
-}
-
-ASTNode* parse_assign(Parser* parser, int* err)
-{
-    ASTNode* node = malloc(sizeof(ASTNode)); // free all ast node
-
-    node->assign.name = strdup(parser->current_token.name); // free assign.name 
-    // first token must be ident
-    next_token(parser); // IDENT 
-    next_token(parser); // '='
-    
-    ASTNode* rhs = parse_expr(parser, err);
-
-    node->type = AST_ASSIGN;
-    node->assign.expr = rhs;
+    ASTNode* node = calloc(1, sizeof(ASTNode));
+    node->type = AST_UNOP;
+    node->unary.op = op;
+    node->unary.right = right;
     return node;
 }
 
-ASTNode* parse_expr(Parser* parser, int* err)
+static ASTNode* make_index_node(ASTNode* left, ASTNode* index)  // Creates an indexing node (like A[3]), will be called in parse_postfix() looking for []
 {
-    ASTNode* left = parse_term(parser, err);
+    ASTNode* node = calloc(1, sizeof(ASTNode));
+    node->type = AST_INDEX;
+    node->binary.left = left; // "A"
+    node->binary.right = index; // '3'
+    return node;
+}
 
-    while (match_token(parser, TOK_PLUS, 0) || match_token(parser, TOK_MINUS, 0))
+ASTNode* parse(Parser* parser, int* err) 
+{
+    parser->current_token = peek(parser, 0); // ni
+    ASTNode* expr = parse_expr(parser, err); // take over parse_assign()
+    if (*err) return NULL;
+
+    if (!match(parser, TOK_EOF)) 
     {
-        TokenType op = parser->current_token.type;
-        next_token(parser);
-
-        ASTNode* right = parse_term(parser, err);
-
-        ASTNode* new_node = make_op_node(op, left, right);
-        left = new_node;
+        fprintf(stderr, "Syntax error: extra tokens at end of input\n");
+        *err = 1;
     }
+    return expr;
+}
+
+// Top-level
+ASTNode* parse_expr(Parser* parser, int* err) // Handle + , - , = which take over parse_assign()
+{
+    ASTNode* left = parse_term(parser, err); 
+    if (*err) return NULL;
+
+    while (match(parser, TOK_PLUS) || match(parser, TOK_MINUS)) 
+    {
+        TokenType op = parser->current_token.type; // assign operator
+        advance(parser); // next token
+        ASTNode* right = parse_term(parser, err); // parse the next term
+        if (*err) return NULL;
+        left = make_op_node(op, left, right);
+    }
+
+    if (match(parser, TOK_ASSIGN)) 
+    {
+        if (left->type != AST_IDENT && left->type != AST_INDEX) 
+        {
+            fprintf(stderr, "Syntax Error: invalid assignment target\n");
+            *err = 1;
+            return NULL;
+        }
+        advance(parser);
+        ASTNode* rhs = parse_expr(parser, err);
+        if (*err) return NULL;
+
+        ASTNode* assign = calloc(1, sizeof(ASTNode));
+        assign->type = AST_ASSIGN;
+        assign->assign.left = left;
+        assign->assign.expr = rhs;
+        return assign;
+    }
+
     return left;
 }
 
 ASTNode* parse_term(Parser* parser, int* err)
 {
-
-    ASTNode* left = parse_mul(parser, err);
-
-    while (match_token(parser, TOK_MUL, 0) || match_token(parser, TOK_DIV, 0))
+    ASTNode* left = parse_mul(parser, err); // parse the first term
+    while (match(parser, TOK_MUL) || match(parser, TOK_DIV)) 
     {
-        TokenType op = parser->current_token.type;
-        next_token(parser);
-
+        TokenType op = parser->current_token.type; // assign operator
+        advance(parser); // next token
         ASTNode* right = parse_mul(parser, err);
-
-        ASTNode* new_node = make_op_node(op, left, right);
-        left = new_node;
+        left = make_op_node(op, left, right);
     }
     return left;
 }
 
-ASTNode* parse_mul(Parser* parser, int* err)
+ASTNode* parse_mul(Parser* parser, int* err) // e.g. 7a 
 {
-    ASTNode* left = parse_factor(parser, err);
-    
-    while (implicit_mul(parser))
+    ASTNode* left = parse_factor(parser, err); // 7 will be assigned
+    while (implicit_mul(parser)) // a is the current parser, 7 is the previous one, so it should be 1
     {
-        ASTNode* right = parse_factor(parser, err);
-
-        ASTNode* new_node = make_op_node(TOK_MUL, left, right);
-        left = new_node;
+        ASTNode* right = parse_factor(parser, err); // set right equal a
+        left = make_op_node(TOK_MUL, left, right); // left = 7 , mid = * , right = a
     }
-
     return left;
 }
 
 ASTNode* parse_factor(Parser* parser, int* err)
 {
     int sign = 1;
-
-    while (match_token(parser, TOK_PLUS, 0) || match_token(parser, TOK_MINUS, 0))
+    while (match(parser, TOK_PLUS) || match(parser, TOK_MINUS)) 
     {
-        if (match_token(parser, TOK_MINUS, 0))
-        {
+        if (match(parser, TOK_MINUS))
             sign = -sign;
-        }
-        next_token(parser);
+        advance(parser);
     }
 
     ASTNode* node = parse_power(parser, err);
-    
+    if (*err) return NULL;
+
     if (sign == -1)
-    {
-        ASTNode* unary = malloc(sizeof(ASTNode));
-        unary->type = AST_UNOP;
-        unary->binary.op = TOK_MINUS;
-        unary->binary.right = node;
-        node = unary;    
-    }
+        node = make_unary_node(TOK_MINUS, node);
 
     return node;
 }
 
 ASTNode* parse_power(Parser* parser, int* err)
 {
-    ASTNode* left = parse_base(parser, err);
-
-    if (match_token(parser, TOK_POW, 0))
+    ASTNode* left = parse_postfix(parser, err);
+    if (match(parser, TOK_POW)) 
     {
-        TokenType op = TOK_POW;
-        next_token(parser);
-        
+        advance(parser);
         ASTNode* right = parse_factor(parser, err);
-        ASTNode* op_node = make_op_node(op, left, right);
-        left = op_node;
+        left = make_op_node(TOK_POW, left, right);
     }
-
     return left;
+}
+
+ASTNode* parse_postfix(Parser* parser, int* err) // parsing []
+{
+    ASTNode* node = parse_base(parser, err);
+    while (match(parser, TOK_LBRACK)) 
+    {
+        advance(parser);
+        ASTNode* index = parse_expr(parser, err); // returning an integer from parse_base()
+        if (!match(parser, TOK_RBRACK)) 
+        {
+            fprintf(stderr, "Syntax Error: expected ']'\n");
+            *err = 1;
+            return NULL;
+        }
+        advance(parser);
+        node = make_index_node(node, index);
+    }
+    return node;
 }
 
 ASTNode* parse_base(Parser* parser, int* err)
 {
-    ASTNode* new_node = malloc(sizeof(ASTNode)); // need to free every astnode
-    if (match_token(parser, TOK_NUM, 0)) // number
+    if (match(parser, TOK_NUM)) 
     {
-        new_node->type = AST_NUM;
-        new_node->value = parser->current_token.value;
-        next_token(parser);
+        ASTNode* node = calloc(1, sizeof(ASTNode));
+        node->type = AST_NUM;
+        node->value = parser->current_token.value;
+        advance(parser);
+        return node;
     }
-    else if (match_token(parser, TOK_IDENT, 0)) // if first token identifier
-    {
-        if (match_token(parser, TOK_LPAREN, 1)) // second token LPAREN
-        {
-            return parse_func(parser, err);
-        }
-        else // identifier
-        {
-            new_node->type = AST_IDENT;
-            new_node->name = strdup(parser->current_token.name); // need to free ast.name
-            next_token(parser);
-        }
-    }
-    else if (match_token(parser, TOK_LPAREN, 0)) // LPAREN expr RPARAN
-    {
-        next_token(parser);
-        new_node = parse_expr(parser, err);
 
-        if (!match_token(parser, TOK_RPAREN, 0)) // SYNTAX ERROR!!!
+    if (match(parser, TOK_IDENT)) 
+    {
+        if (look_ahead(parser, TOK_LPAREN, 1))
+            return parse_func(parser, err);
+
+        ASTNode* node = calloc(1, sizeof(ASTNode));
+        node->type = AST_IDENT;
+        node->name = strdup(parser->current_token.name);
+        advance(parser);
+        return node;
+    }
+
+    if (match(parser, TOK_LPAREN)) 
+    {
+        advance(parser);
+        ASTNode* node = parse_expr(parser, err);
+        if (!match(parser, TOK_RPAREN)) 
         {
             fprintf(stderr, "Syntax error: expected ')'\n");
             *err = 1;
             return NULL;
         }
+        advance(parser);
+        return node;
+    }
 
-        next_token(parser);
-    }
-    else if (match_token(parser, TOK_LBRACK, 0))
-    {
+    if (match(parser, TOK_LBRACK))
         return parse_mat(parser, err);
-    }
-    return new_node;
+
+    fprintf(stderr, "Syntax error: unexpected token '%s'\n",
+            type_to_string(parser->current_token.type));
+    *err = 1;
+    return NULL;
 }
 
 ASTNode* parse_func(Parser* parser, int* err)
 {
-    // func -> IDENT LPARAN (expr (COMMA expr)*)? RPARAN
-
-    ASTNode* node = malloc(sizeof(ASTNode)); // need to free all the ast nodes 
+    ASTNode* node = malloc(sizeof(ASTNode));
     node->type = AST_FUNC;
-    node->func.name = strdup(parser->current_token.name); // need to free astnode.func.name
+    node->func.name = strdup(parser->current_token.name);
     node->func.arg_size = 0;
 
-    next_token(parser); // consume IDENT
+    advance(parser); // consume IDENT
 
-    if (parser->current_token.type != TOK_LPAREN) {
-        fprintf(stderr, "Syntax error: expected '('\n");
+    if (parser->current_token.type != TOK_LPAREN) 
+    {
+        fprintf(stderr, "Syntax Error: expected '('\n");
         *err = 1;
-        return NULL;
+        return node;
     }
-    next_token(parser); // consume '('
 
-    // arguments
-    if (parser->current_token.type != TOK_RPAREN) {
-        // allocate space for arguments (say max 16 for now)
-        node->func.args = malloc(16 * sizeof(ASTNode*)); // need to free the args in the AST
+    advance(parser); // consume '('
+    int cap = 4;
+    node->func.args = malloc(cap * sizeof(ASTNode*));
+
+    while (parser->current_token.type != TOK_RPAREN && !*err) 
+    {
+        if (node->func.arg_size == cap) 
+        {
+            cap *= 2;
+            node->func.args = realloc(node->func.args, cap * sizeof(ASTNode*));
+        }
 
         node->func.args[node->func.arg_size++] = parse_expr(parser, err);
-        while (match_token(parser, TOK_COMMA, 0)) {
-            next_token(parser); // consume ','
-            node->func.args[node->func.arg_size++] = parse_expr(parser, err);
+        if (*err) return node;
+
+        if (parser->current_token.type == TOK_COMMA)
+            advance(parser); // consume ','
+        else if (parser->current_token.type != TOK_RPAREN) 
+        {
+            fprintf(stderr, "Syntax Error: expected ',' or ')'\n");
+            *err = 1;
+            return node;
         }
     }
 
-    if (parser->current_token.type != TOK_RPAREN) {
-        fprintf(stderr, "Syntax error: expected ')'\n");
-        *err = 1;
-        return NULL;
-    }
-    next_token(parser); // consume ')'
-
+    advance(parser); // consume ')'
     return node;
 }
 
 ASTNode* parse_mat(Parser* parser, int* err)
 {
-    // mat -> LBRACK row (SEMICOLON row)* RBRACK
-    next_token(parser);
-    int row_cap = 4;
+    advance(parser); // consume '['
+
     ASTNode* node = malloc(sizeof(ASTNode));
     node->type = AST_MAT;
-    node->mat.row_cap = row_cap;
-    node->mat.matrix = malloc(4 * sizeof(ASTNode*));
-
+    node->mat.row_cap = 4;
+    node->mat.matrix = malloc(node->mat.row_cap * sizeof(ASTNode*));
     node->mat.rows = 1;
+
     node->mat.matrix[0] = parse_row(parser, err);
 
-    while (match_token(parser, TOK_SEMI, 0))
+    while (parser->current_token.type == TOK_SEMI && !*err) 
     {
-        // consume SEMI
-        next_token(parser);
-        
-        if (node->mat.rows == node->mat.row_cap)
+        advance(parser); // consume ';'
+
+        if (node->mat.rows == node->mat.row_cap) 
         {
             node->mat.row_cap *= 2;
             node->mat.matrix = realloc(node->mat.matrix, node->mat.row_cap * sizeof(ASTNode*));
         }
-        
+
         node->mat.matrix[node->mat.rows++] = parse_row(parser, err);
     }
 
-    // consume RBRACK
-    next_token(parser);
+    if (parser->current_token.type != TOK_RBRACK) 
+    {
+        fprintf(stderr, "Syntax Error: expected ']'\n");
+        *err = 1;
+        return node;
+    }
 
+    advance(parser); // consume ']'
     return node;
 }
 
 ASTNode* parse_row(Parser* parser, int* err)
 {
-    // make a row ASTNode
     ASTNode* node = malloc(sizeof(ASTNode));
     node->type = AST_ROW;
     node->row.col_cap = 4;
-    node->row.elements = malloc(4 * sizeof(ASTNode*));
-    
+    node->row.elements = malloc(node->row.col_cap * sizeof(ASTNode*));
     node->row.cols = 1;
+
     node->row.elements[0] = parse_expr(parser, err);
 
-    while (match_token(parser, TOK_COMMA, 0))
+    while (parser->current_token.type == TOK_COMMA && !*err) 
     {
-        // consume COMMA
-        next_token(parser);
+        advance(parser); // consume ','
 
-        if (node->row.cols == node->row.col_cap)
+        if (node->row.cols == node->row.col_cap) 
         {
             node->row.col_cap *= 2;
             node->row.elements = realloc(node->row.elements, node->row.col_cap * sizeof(ASTNode*));
         }
-        
+
         node->row.elements[node->row.cols++] = parse_expr(parser, err);
     }
-    
+
     return node;
 }
 
-void print_ast(ASTNode* node, int indent) {
-    if (!node) return;
+int implicit_mul(Parser* parser)
+{
+    TokenType prev = parser->tokens[parser->pos - 1].type;
+    TokenType curr = parser->current_token.type;
 
+    int left_ok = (prev == TOK_NUM || prev == TOK_RPAREN || prev == TOK_RBRACK);
+    int right_ok = (curr == TOK_IDENT || curr == TOK_LPAREN || curr == TOK_LBRACK);
+
+    return left_ok && right_ok;
+}
+
+void print_ast(ASTNode* node, int indent)
+{
+    if (!node) return;
     for (int i = 0; i < indent; i++) printf("  ");
 
     switch (node->type) {
@@ -323,136 +373,84 @@ void print_ast(ASTNode* node, int indent) {
             printf("VAR: %s\n", node->name);
             break;
         case AST_BINOP:
-            printf("BINOP: %s\n", type_to_string(node->binary.op)); // or convert to string
+            printf("BINOP: %d\n", node->binary.op);
             print_ast(node->binary.left, indent + 1);
             print_ast(node->binary.right, indent + 1);
             break;
+        case AST_UNOP:
+            printf("UNOP: %d\n", node->unary.op);
+            print_ast(node->unary.right, indent + 1);
+            break;
         case AST_ASSIGN:
-            printf("ASSIGN: %s\n", node->assign.name);
+            printf("ASSIGN:\n");
+            print_ast(node->assign.left, indent + 1);
             print_ast(node->assign.expr, indent + 1);
             break;
         case AST_FUNC:
-            printf("FUNC: %s\n", node->func.name);
+            printf("FUNC: %s (%d args)\n", node->func.name, node->func.arg_size);
             for (int i = 0; i < node->func.arg_size; i++)
-            {
                 print_ast(node->func.args[i], indent + 1);
-            }
             break;
         case AST_ROW:
-            printf("ROW: %d elements\n", node->row.cols);
+            printf("ROW (%d cols)\n", node->row.cols);
             for (int i = 0; i < node->row.cols; i++)
-            {
                 print_ast(node->row.elements[i], indent + 1);
-            }
             break;
         case AST_MAT:
-            printf("MAT: %d rows\n", node->mat.rows);
+            printf("MAT (%d rows)\n", node->mat.rows);
             for (int i = 0; i < node->mat.rows; i++)
-            {
                 print_ast(node->mat.matrix[i], indent + 1);
-            }
             break;
         default:
             printf("UNKNOWN\n");
     }
 }
 
-void free_ast(ASTNode* node) {
+void free_ast(ASTNode* node)
+{
     if (!node) return;
 
     switch (node->type) {
-    case AST_FUNC:
-        free(node->func.name);  // strdup’ed
-        for (int i = 0; i < node->func.arg_size; i++) {
-            free_ast(node->func.args[i]); // recursive free for children
-        }
-        free(node->func.args);
-        break;
+        case AST_FUNC:
+            free(node->func.name);
+            for (int i = 0; i < node->func.arg_size; i++)
+                free_ast(node->func.args[i]);
+            free(node->func.args);
+            break;
 
-    case AST_ASSIGN:
-        free(node->assign.name);
-        free_ast(node->assign.expr);
-        break;
+        case AST_ASSIGN:
+            free_ast(node->assign.left);
+            free_ast(node->assign.expr);
+            break;
 
-    case AST_IDENT:
-        free(node->name); // strdup’ed
-        break;
+        case AST_IDENT:
+            free(node->name);
+            break;
 
-    case AST_BINOP:
-        free_ast(node->binary.left);
-        free_ast(node->binary.right);
-        break;
+        case AST_BINOP:
+            free_ast(node->binary.left);
+            free_ast(node->binary.right);
+            break;
 
-    case AST_NUM:
-        // nothing heap-allocated
-        break;
-    case AST_UNOP:
-        free_ast(node->binary.right);
-        break;
-    case AST_ROW:
-        for (int i = 0; i < node->row.cols; i++)
-        {
-            free_ast(node->row.elements[i]);
-        }
-        free(node->row.elements);
-        break;
-    case AST_MAT:
-        for (int i = 0; i < node->mat.rows; i++)
-        {
-            free_ast(node->mat.matrix[i]);
-        }
-        free(node->mat.matrix);
-        break;
+        case AST_UNOP:
+            free_ast(node->unary.right);
+            break;
+
+        case AST_ROW:
+            for (int i = 0; i < node->row.cols; i++)
+                free_ast(node->row.elements[i]);
+            free(node->row.elements);
+            break;
+
+        case AST_MAT:
+            for (int i = 0; i < node->mat.rows; i++)
+                free_ast(node->mat.matrix[i]);
+            free(node->mat.matrix);
+            break;
+
+        default:
+            break;
     }
 
-    free(node); // finally, free the node itself
-}
-
-int implicit_mul(Parser* parser)
-{
-    TokenType prev = parser->tokens[parser->pos-1].type;
-    TokenType curr = parser->current_token.type;
-
-    switch (prev)
-    {
-    case TOK_NUM:
-        switch (curr)
-        {
-        case TOK_IDENT:
-            return 1;
-        case TOK_LPAREN:
-            return 1;
-        case TOK_LBRACK:
-            return 1;
-        default:
-            return 0;
-        }
-    case TOK_RPAREN:
-        switch (curr)
-        {
-        case TOK_IDENT:
-            return 1;
-        case TOK_LPAREN:
-            return 1;
-        case TOK_LBRACK:
-            return 1;
-        default:
-            return 0;
-        }
-    case TOK_RBRACK:
-        switch (curr)
-        {
-        case TOK_IDENT:
-            return 1;
-        case TOK_LPAREN:
-            return 1;
-        case TOK_LBRACK:
-            return 1;
-        default:
-            return 0;
-        }
-    default:
-        return 0;
-    }
-    return 0;
+    free(node);
 }

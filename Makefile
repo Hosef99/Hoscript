@@ -12,8 +12,12 @@ SRC += src/$(MAINFILE)
 
 OBJ = $(patsubst src/%.c, build/%.o, $(SRC))
 
-# Detect OS
-UNAME_S := $(shell uname -s)
+# Detect OS safely
+ifeq ($(OS),Windows_NT)
+    UNAME_S := Windows
+else
+    UNAME_S := $(shell uname -s)
+endif
 
 ifeq ($(UNAME_S),Linux)
     TARGET = bin/hos
