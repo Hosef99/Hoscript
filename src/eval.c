@@ -421,7 +421,8 @@ Value eval_index(ASTNode* node, Env* env, int* err)
     Value index = eval(node->binary.right, env, err);
     if (*err) return EMPTY;
 
-    if (index.type != VAL_NUM) {
+    if (index.type != VAL_NUM) 
+    {
         fprintf(stderr, "TypeError: invalid index type.\n");
         *err = 1;
         return EMPTY;
@@ -433,15 +434,19 @@ Value eval_index(ASTNode* node, Env* env, int* err)
     int nested_as_inner = (node->parent && node->parent->type == AST_INDEX && node->parent->binary.left == node);
     int nested_as_outer = (node->binary.left && node->binary.left->type == AST_INDEX);
 
-    if (left.type != VAL_MAT) {
+    if (left.type != VAL_MAT) 
+    {
         fprintf(stderr, "TypeError: invalid indexing target.\n");
         *err = 1;
         return EMPTY;
     }
 
-    if (left.mat.rows == 1) {
-        if (nested_as_inner) {
-            if (i != 0) {
+    if (left.mat.rows == 1) 
+    {
+        if (nested_as_inner) 
+        {
+            if (i != 0) 
+            {
                 fprintf(stderr, "Index Error: row index out of range for 1x%d vector.\n", left.mat.cols);
                 *err = 1;
                 return EMPTY;
@@ -449,7 +454,8 @@ Value eval_index(ASTNode* node, Env* env, int* err)
             return left;
         }
 
-        if (i < 0 || i >= left.mat.cols) {
+        if (i < 0 || i >= left.mat.cols) 
+        {
             fprintf(stderr, "Index Error: column index out of range for 1x%d vector.\n", left.mat.cols);
             *err = 1;
             return EMPTY;
@@ -459,13 +465,16 @@ Value eval_index(ASTNode* node, Env* env, int* err)
         return v;
     }
 
-    if (nested_as_outer) {
-        if (left.mat.rows != 1) {
+    if (nested_as_outer) 
+    {
+        if (left.mat.rows != 1) 
+        {
             fprintf(stderr, "TypeError: nested indexing expects a 1xN row.\n");
             *err = 1;
             return EMPTY;
         }
-        if (i < 0 || i >= left.mat.cols) {
+        if (i < 0 || i >= left.mat.cols) 
+        {
             fprintf(stderr, "Index Error: column index out of range.\n");
             *err = 1;
             return EMPTY;
@@ -475,7 +484,8 @@ Value eval_index(ASTNode* node, Env* env, int* err)
         return v;
     }
 
-    if (i < 0 || i >= left.mat.rows) {
+    if (i < 0 || i >= left.mat.rows) 
+    {
         fprintf(stderr, "Index Error: row index out of range for %dx%d matrix.\n", left.mat.rows, left.mat.cols);
         *err = 1;
         return EMPTY;
