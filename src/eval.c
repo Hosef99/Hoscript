@@ -260,6 +260,14 @@ Value printvar(Value *args, int n, int *err)
     return res;
 }
 
+void eval_program(ASTNode* node, Env *env, int *err)
+{
+    for (int i = 0; i < node->program.count; i++)
+    {
+        eval(node->program.nodes[i], env, err);
+    }
+}
+
 Value eval_assign(ASTNode *node, Env *env, int *err)
 {
     Value rhs = eval(node->assign.expr, env, err);
@@ -738,6 +746,10 @@ Value eval(ASTNode *node, Env *env, int *err)
         return eval_mat(node, env, err);
     case AST_INDEX:
         return eval_index(node, env, err);
+    case AST_PROGRAM:
+        if (node->program.count == 0) 
+            return EMPTY;
+        return eval(node->program.nodes[0], env, err);
 
     default:
         return EMPTY;
@@ -851,22 +863,33 @@ void interpret(const char *input, Env *env, int is_file, int *err)
         return;
     }
 
-    Value result = eval(root, env, err);
-    if (*err)
-    {
-        free_tokens(tokens, tok_count);
-        free_ast(root);
-        return;
+    if (is_file) {
+        eval_program(root, env, err);
+        if (*err) {
+            free_tokens(tokens, tok_count);
+            free_ast(root);
+            return;
+        }
     }
-    if (!*err && tok_count != 1)
-    {
-        if (root->type != AST_ASSIGN)
+    else {
+        Value result = eval(root, env, err);
+        if (*err)
         {
-            if (!is_file)
+            free_tokens(tokens, tok_count);
+            free_ast(root);
+            return;
+        }
+
+        if (!*err && tok_count != 1)
+        {
+            if (root->program.nodes[0]->type != AST_ASSIGN)
             {
-                print_value(result, "\n", err);
+                if (!is_file)
+                {
+                    print_value(result, "\n", err);
+                }
+                free_value(result);
             }
-            free_value(result);
         }
     }
 
@@ -911,17 +934,10 @@ void run_file(const char *filename, int *err)
         return;
     }
 
-    char *line = strtok(source, "\n");
     Variable vars[VAR_MAX];
     Env env = {vars, 0};
 
-    while (line != NULL)
-    {
-        interpret(line, &env, 1, err);
-        if (*err)
-            break;
-        line = strtok(NULL, "\n");
-    }
+    interpret(source, &env, IS_FILE, err);
 
     free(source);
 }

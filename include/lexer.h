@@ -16,6 +16,7 @@ typedef enum {
     TOK_COMMA,      // ,
     TOK_SEMI,       // ;
     TOK_ASSIGN,     // =
+    TOK_NEWLINE,    // \n
     TOK_EOF         // end of input
 } TokenType;
 
