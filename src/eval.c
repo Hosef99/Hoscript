@@ -5,6 +5,7 @@
 #include <string.h>  // strcmp, strdup, strlen
 #include <ctype.h>   // isdigit, isalpha, isspace
 #include <math.h>
+#include <stdbool.h>
 
 #include "mat_raw.h"
 #include "mat.h"
@@ -418,86 +419,75 @@ Value eval_index(ASTNode* node, Env* env, int* err)
 {
     Value left = eval(node->binary.left, env, err);
     Value index = eval(node->binary.right, env, err);
+    if (*err) return EMPTY;
 
-    if (left.type != VAL_MAT || index.type != VAL_NUM)
-    {
-        fprintf(stderr, "TypeError: invalid indexing.\n");
+    if (index.type != VAL_NUM) {
+        fprintf(stderr, "TypeError: invalid index type.\n");
         *err = 1;
         return EMPTY;
     }
 
-    int i = (int)index.number; // make sure its integer instead of double
+    int i = (int)index.number;
+    Value v = EMPTY;
 
-    if (left.mat.rows == 1)
-    {
-        if (i < 0 || i >= left.mat.cols)
-        {
-            fprintf(stderr, "Index Error: index out of range.\n");
-            *err = 1;
-            return EMPTY;
-        }
-    }
-    else
-    {
-        if (i < 0 || i >= left.mat.rows)
-        {
-            fprintf(stderr, "Index Error: index out of range.\n");
-            *err = 1;
-            return EMPTY;
-        }
+    int nested_as_inner = (node->parent && node->parent->type == AST_INDEX && node->parent->binary.left == node);
+    int nested_as_outer = (node->binary.left && node->binary.left->type == AST_INDEX);
+
+    if (left.type != VAL_MAT) {
+        fprintf(stderr, "TypeError: invalid indexing target.\n");
+        *err = 1;
+        return EMPTY;
     }
 
-    Value v;
-
-    if (left.mat.rows == 1)
-    {   
-        if (i < 0 || i >= left.mat.cols)
-        {
-            fprintf(stderr, "Index Error: index out of range.\n");
-            *err = 1;
-            return EMPTY;
-        }
-        if (node->parent && node->parent->type == AST_INDEX) // Detect if this node is *part of a larger AST_INDEX* (means we're inside a nested a[0][x])
-        {   
-            if (i < 0 || i >= left.mat.rows)
-            {
-                fprintf(stderr, "Index Error: row index out of range.\n");
+    if (left.mat.rows == 1) {
+        if (nested_as_inner) {
+            if (i != 0) {
+                fprintf(stderr, "Index Error: row index out of range for 1x%d vector.\n", left.mat.cols);
                 *err = 1;
                 return EMPTY;
             }
-            v.type = VAL_MAT;
-            v.mat.rows = 1;
-            v.mat.cols = left.mat.cols;
-            v.mat.data = malloc(sizeof(double*));
-            v.mat.data[0] = malloc(sizeof(double) * v.mat.cols);
-            for (int c = 0; c < v.mat.cols; c++)
-                v.mat.data[0][c] = left.mat.data[0][c];
+            return left;
         }
-        else
-        {
-            v.type = VAL_NUM;
-            v.number = left.mat.data[0][i];
+
+        if (i < 0 || i >= left.mat.cols) {
+            fprintf(stderr, "Index Error: column index out of range for 1x%d vector.\n", left.mat.cols);
+            *err = 1;
+            return EMPTY;
         }
+        v.type = VAL_NUM;
+        v.number = left.mat.data[0][i];
+        return v;
     }
 
-    else
-    {
-        if (!(node->parent && node->parent->type == AST_INDEX))
-        {
-            v.type = VAL_MAT;
-            v.mat.rows = 1;
-            v.mat.cols = left.mat.cols;
-            v.mat.data = malloc(sizeof(double*));
-            v.mat.data[0] = malloc(sizeof(double) * v.mat.cols);
-            for (int c = 0; c < v.mat.cols; c++)
-                v.mat.data[0][c] = left.mat.data[i][c];
+    if (nested_as_outer) {
+        if (left.mat.rows != 1) {
+            fprintf(stderr, "TypeError: nested indexing expects a 1xN row.\n");
+            *err = 1;
+            return EMPTY;
         }
-        else
-        {
-            v.type = VAL_NUM;
-            v.number = left.mat.data[i][0];
+        if (i < 0 || i >= left.mat.cols) {
+            fprintf(stderr, "Index Error: column index out of range.\n");
+            *err = 1;
+            return EMPTY;
         }
+        v.type = VAL_NUM;
+        v.number = left.mat.data[0][i];
+        return v;
     }
+
+    if (i < 0 || i >= left.mat.rows) {
+        fprintf(stderr, "Index Error: row index out of range for %dx%d matrix.\n", left.mat.rows, left.mat.cols);
+        *err = 1;
+        return EMPTY;
+    }
+
+    v.type = VAL_MAT;
+    v.mat.rows = 1;
+    v.mat.cols = left.mat.cols;
+    v.mat.data = malloc(sizeof(double*));
+    v.mat.data[0] = malloc(sizeof(double) * v.mat.cols);
+    for (int c = 0; c < v.mat.cols; ++c)
+        v.mat.data[0][c] = left.mat.data[i][c];
 
     return v;
 }
