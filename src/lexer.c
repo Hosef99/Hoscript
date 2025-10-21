@@ -28,6 +28,7 @@ char* type_to_string(TokenType type)
     case TOK_COMMA:     return "Comma";
     case TOK_SEMI:      return "Semicolon";
     case TOK_ASSIGN:    return "Equals";
+    case TOK_NEWLINE:   return "Newline";
     case TOK_EOF:       return "EOF";
     default:            return "Unknown";
     }
@@ -71,6 +72,7 @@ Token lex(const char* input, int* pos, int* err)
         if (input[*pos] == ',') { (*pos)++; return (Token){TOK_COMMA, 0, NULL}; }
         if (input[*pos] == ';') { (*pos)++; return (Token){TOK_SEMI, 0, NULL}; }
         if (input[*pos] == '=') { (*pos)++; return (Token){TOK_ASSIGN, 0, NULL}; }
+        if (input[*pos] == '\n') { (*pos)++; return (Token){TOK_NEWLINE, 0, NULL}; }
         if (isalpha(input[*pos]) || input[*pos] == '_') return lex_identifier(input, pos, err);
         
         printf("Syntax error, or not yet implemented.\n");

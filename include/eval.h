@@ -36,5 +36,7 @@ typedef struct
 
 Value eval(ASTNode* node, Env* env, int* err);
 void print_help();
+void start_repl();
+void run_file(const char* filename, int* err);
 
 #endif

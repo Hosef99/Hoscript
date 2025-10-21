@@ -1,3 +1,4 @@
+#include "lexer.h"
 #define _POSIX_C_SOURCE 200809L
 #include <stdio.h> // printf, scanf
 #include <stdlib.h> // calloc, free, atof, exit 
@@ -77,16 +78,41 @@ static ASTNode* make_index_node(ASTNode* left, ASTNode* index)  // Creates an in
 
 ASTNode* parse(Parser* parser, int* err) 
 {
+    int program_size = 4;
+    ASTNode* program = malloc(sizeof(ASTNode));
+    program->type = AST_PROGRAM;
+    program->program.count = 0;
+    program->program.nodes = malloc(program_size*sizeof(ASTNode*));
+
     parser->current_token = peek(parser, 0); // ni
     ASTNode* expr = parse_expr(parser, err); // take over parse_assign()
     if (*err) return NULL;
+
+    program->program.nodes[program->program.count++] = expr;
+
+    while (match(parser, TOK_NEWLINE)) {
+        advance(parser);
+        if (program->program.count == program_size)
+        {
+            program_size *= 2;
+            program->program.nodes = realloc(program->program.nodes, program_size * sizeof(ASTNode*));
+        }
+        expr = parse_expr(parser, err);
+        if (expr->type == AST_EOF)
+        {
+            free_ast(expr);
+            continue;
+        }
+        if (*err) return NULL;
+        program->program.nodes[program->program.count++] = expr;
+    }
 
     if (!match(parser, TOK_EOF)) 
     {
         fprintf(stderr, "Syntax error: extra tokens at end of input\n");
         *err = 1;
     }
-    return expr;
+    return program;
 }
 
 // Top-level
@@ -239,6 +265,13 @@ ASTNode* parse_base(Parser* parser, int* err)
 
     if (match(parser, TOK_LBRACK))
         return parse_mat(parser, err);
+
+    if (match(parser, TOK_EOF) || match(parser, TOK_NEWLINE))
+    {
+        ASTNode* node = malloc(sizeof(ASTNode));
+        node->type = AST_EOF;
+        return node;
+    }
 
     fprintf(stderr, "Syntax error: unexpected token '%s'\n",
             type_to_string(parser->current_token.type));
@@ -414,6 +447,11 @@ void print_ast(ASTNode* node, int indent)
             for (int i = 0; i < node->mat.rows; i++)
                 print_ast(node->mat.matrix[i], indent + 1);
             break;
+        case AST_PROGRAM:
+            printf("PROGRAM:\n");
+            for (int i = 0; i < node->program.count; i++)
+                print_ast(node->program.nodes[i], indent + 1);
+            break;
         default:
             printf("UNKNOWN\n");
     }
@@ -461,7 +499,11 @@ void free_ast(ASTNode* node)
                 free_ast(node->mat.matrix[i]);
             free(node->mat.matrix);
             break;
-
+        case AST_PROGRAM:
+            for (int i = 0; i < node->program.count; i++)
+                free_ast(node->program.nodes[i]);
+            free(node->program.nodes);
+            break;
         default:
             break;
     }
