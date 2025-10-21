@@ -6,6 +6,7 @@
 #include <stdio.h>  // printf, scanf
 #include <stdlib.h> // malloc, free, atof, exit
 #include <string.h> // strcmp, strdup, strlen
+#include <stdbool.h>
 
 #include "compat_readline.h"
 #include "eval.h"
@@ -500,8 +501,7 @@ Value eval_func(ASTNode *node, Env *env, int *err)
 Value eval_unop(ASTNode *node, Env *env, int *err)
 {
     Value val = eval(node->unary.right, env, err);
-    if (*err)
-        return EMPTY;
+    if (*err) return EMPTY;
 
     if (node->unary.op == TOK_MINUS)
     {
@@ -558,127 +558,118 @@ Value eval_mat(ASTNode *node, Env *env, int *err)
     return res;
 }
 
-Value eval_index(ASTNode *node, Env *env, int *err)
+Value eval_index(ASTNode* node, Env* env, int* err)
 {
     Value left = eval(node->binary.left, env, err);
     Value index = eval(node->binary.right, env, err);
+    if (*err) return EMPTY;
 
-    if (left.type != VAL_MAT || index.type != VAL_NUM)
+    if (index.type != VAL_NUM) 
     {
-        fprintf(stderr, "TypeError: invalid indexing.\n");
+        fprintf(stderr, "TypeError: invalid index type.\n");
         *err = 1;
         return EMPTY;
     }
 
-    int i = (int) index.number; // make sure its integer instead of double
+    int i = (int)index.number;
+    Value v = EMPTY;
 
-    if (left.mat.rows == 1)
+    int nested_as_inner = (node->parent && node->parent->type == AST_INDEX && node->parent->binary.left == node);
+    int nested_as_outer = (node->binary.left && node->binary.left->type == AST_INDEX);
+
+    if (left.type != VAL_MAT) 
     {
-        if (i < 0 || i >= left.mat.cols)
-        {
-            fprintf(stderr, "Index Error: index out of range.\n");
-            *err = 1;
-            return EMPTY;
-        }
-    }
-    else
-    {
-        if (i < 0 || i >= left.mat.rows)
-        {
-            fprintf(stderr, "Index Error: index out of range.\n");
-            *err = 1;
-            return EMPTY;
-        }
+        fprintf(stderr, "TypeError: invalid indexing target.\n");
+        *err = 1;
+        return EMPTY;
     }
 
-    Value v;
-
-    if (left.mat.rows == 1)
+    if (left.mat.rows == 1) 
     {
-        if (i < 0 || i >= left.mat.cols)
+        if (nested_as_inner) 
         {
-            fprintf(stderr, "Index Error: index out of range.\n");
-            *err = 1;
-            return EMPTY;
-        }
-        if (node->parent &&
-            node->parent->type == AST_INDEX) // Detect if this node is *part of a larger AST_INDEX*
-                                             // (means we're inside a nested a[0][x])
-        {
-            if (i < 0 || i >= left.mat.rows)
+            if (i != 0) 
             {
-                fprintf(stderr, "Index Error: row index out of range.\n");
+                fprintf(stderr, "Index Error: row index out of range for 1x%d vector.\n", left.mat.cols);
                 *err = 1;
                 return EMPTY;
             }
-            v.type = VAL_MAT;
-            v.mat.rows = 1;
-            v.mat.cols = left.mat.cols;
-            v.mat.data = malloc(sizeof(double *));
-            v.mat.data[0] = malloc(sizeof(double) * v.mat.cols);
-            for (int c = 0; c < v.mat.cols; c++)
-                v.mat.data[0][c] = left.mat.data[0][c];
+            return left;
         }
-        else
+
+        if (i < 0 || i >= left.mat.cols) 
         {
-            v.type = VAL_NUM;
-            v.number = left.mat.data[0][i];
+            fprintf(stderr, "Index Error: column index out of range for 1x%d vector.\n", left.mat.cols);
+            *err = 1;
+            return EMPTY;
         }
+        v.type = VAL_NUM;
+        v.number = left.mat.data[0][i];
+        return v;
     }
 
-    else
+    if (nested_as_outer) 
     {
-        if (!(node->parent && node->parent->type == AST_INDEX))
+        if (left.mat.rows != 1) 
         {
-            v.type = VAL_MAT;
-            v.mat.rows = 1;
-            v.mat.cols = left.mat.cols;
-            v.mat.data = malloc(sizeof(double *));
-            v.mat.data[0] = malloc(sizeof(double) * v.mat.cols);
-            for (int c = 0; c < v.mat.cols; c++)
-                v.mat.data[0][c] = left.mat.data[i][c];
+            fprintf(stderr, "TypeError: nested indexing expects a 1xN row.\n");
+            *err = 1;
+            return EMPTY;
         }
-        else
+        if (i < 0 || i >= left.mat.cols) 
         {
-            v.type = VAL_NUM;
-            v.number = left.mat.data[i][0];
+            fprintf(stderr, "Index Error: column index out of range.\n");
+            *err = 1;
+            return EMPTY;
         }
+        v.type = VAL_NUM;
+        v.number = left.mat.data[0][i];
+        return v;
     }
+
+    if (i < 0 || i >= left.mat.rows) 
+    {
+        fprintf(stderr, "Index Error: row index out of range for %dx%d matrix.\n", left.mat.rows, left.mat.cols);
+        *err = 1;
+        return EMPTY;
+    }
+
+    v.type = VAL_MAT;
+    v.mat.rows = 1;
+    v.mat.cols = left.mat.cols;
+    v.mat.data = malloc(sizeof(double*));
+    v.mat.data[0] = malloc(sizeof(double) * v.mat.cols);
+    for (int c = 0; c < v.mat.cols; ++c)
+        v.mat.data[0][c] = left.mat.data[i][c];
 
     return v;
 }
 
-void assign_to_index(ASTNode *node, Value rhs, Env *env, int *err)
+void assign_to_index(ASTNode* node, Value rhs, Env* env, int* err)
 {
-    Value index = eval(node->binary.right, env,
-                       err); // At the right side, binary.right should be a double type index at
-                             // this point but its still havent evaluate that it is column or row
+    Value index = eval(node->binary.right, env, err); // At the right side, binary.right should be a double type index at this point but its still havent evaluate that it is column or row
     if (index.type != VAL_NUM)
     {
         fprintf(stderr, "Index must be numeric.\n");
         *err = 1;
         return;
     }
-    int j = (int) index.number; // make sure its integer instead of double
+    int j = (int)index.number; // make sure its integer instead of double
 
-    if (node->binary.left->type ==
-        AST_INDEX) // At the left side is another A[i] , so we have something like A[i][j] , then we
-                   // can consider i = rows , j = cols in this condition
+    if (node->binary.left->type == AST_INDEX) // At the left side is another A[i] , so we have something like A[i][j] , then we can consider i = rows , j = cols in this condition
     {
-        ASTNode *left_index = node->binary.left;
-        Value row_index = eval(left_index->binary.right, env,
-                               err); // can look as eval(node->binary.left->binary.right, ...)
+        ASTNode* left_index = node->binary.left;
+        Value row_index = eval(left_index->binary.right, env, err); // can look as eval(node->binary.left->binary.right, ...)
         if (row_index.type != VAL_NUM)
         {
             fprintf(stderr, "Index must be numeric.\n");
             *err = 1;
             return;
         }
-        int i = (int) row_index.number; // same, make sure its integer
+        int i = (int)row_index.number; // same, make sure its integer
 
         // base variable
-        ASTNode *ident_node =
-            left_index->binary.left; // Go to the bottom left of tree to get the AST_IDENT
+        ASTNode* ident_node = left_index->binary.left; // Go to the bottom left of tree to get the AST_IDENT
         Value mat = get_var(ident_node->name, env, err); // Get the actual matrix variable "A"
 
         if (mat.type != VAL_MAT)
@@ -688,18 +679,17 @@ void assign_to_index(ASTNode *node, Value rhs, Env *env, int *err)
             return;
         }
 
-        if (i < 0 || i >= mat.mat.rows || j < 0 ||
-            j >= mat.mat.cols) // struct { int rows; int cols; double** data; }mat
+        if (i < 0 || i >= mat.mat.rows || j < 0 || j >= mat.mat.cols) // struct { int rows; int cols; double** data; }mat
         {
             fprintf(stderr, "Index Error: index out of range.\n");
             *err = 1;
             return;
         }
-        mat.mat.data[i][j] = rhs.number; // assign desired number to the particular position
+
+        mat.mat.data[i][j] = rhs.number;  // assign desired number to the particular position
         set_var(ident_node->name, mat, env, err); // update environment
     }
-    else if (node->binary.left->type == AST_IDENT) // At the left side, we directly get only
-                                                   // IDENT(A) , so it is only A[j] (j = cols)
+    else if (node->binary.left->type == AST_IDENT) // At the left side, we directly get only IDENT(A) , so it is only A[j] (j = cols)
     {
         Value mat = get_var(node->binary.left->name, env, err);
         if (mat.type != VAL_MAT)
@@ -716,14 +706,12 @@ void assign_to_index(ASTNode *node, Value rhs, Env *env, int *err)
             return;
         }
 
-        mat.mat.data[0][j] =
-            rhs.number; // only access the first row and assign the value of specific column ,
-                        // doesnt matter if the row is more than 1
+        mat.mat.data[0][j] = rhs.number; // only access the first row and assign the value of specific column , doesnt matter if the row is more than 1
         set_var(node->binary.left->name, mat, env, err);
     }
 }
 
-Value eval(ASTNode *node, Env *env, int *err)
+Value eval(ASTNode* node, Env* env, int* err)
 {
     Value a;
     switch (node->type)

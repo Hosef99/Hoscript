@@ -1,7 +1,9 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "lexer.h"
+#include "lexer.h"  
+
+typedef struct ASTNode ASTNode;
 
 typedef struct ASTNode ASTNode;
 
