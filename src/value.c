@@ -15,7 +15,7 @@ void print_value(Value value, const char* end, int* err)
             print_mat(value.mat.data, value.mat.rows, value.mat.cols, err);
             break;
         case VAL_STR:
-            printf("%s", value.string);
+            printf("%s%s", value.string, end);
             break;
         case VAL_EMP:
             break;

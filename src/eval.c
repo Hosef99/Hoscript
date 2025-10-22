@@ -190,12 +190,13 @@ Value print(Value *args, int n, int *err)
 {
     Value res;
     res.type = VAL_EMP;
-    char *end = "\n";
+    char *end = " ";
 
     for (int i = 0; i < n; i++)
     {
         print_value(args[i], end, err);
     }
+    printf("\n");
     return res;
 }
 
@@ -739,6 +740,10 @@ Value eval(ASTNode* node, Env* env, int* err)
         a.type = VAL_NUM;
         a.number = node->value;
         return a;
+    case AST_STRING:
+	a.type = VAL_STR;
+	a.string = strdup(node->name);
+	return a;
     case AST_BINOP:
         return eval_binop(node, env, err);
     case AST_IDENT:
@@ -850,6 +855,7 @@ void interpret(const char *input, Env *env, int is_file, int *err)
     Token *tokens = generate_tokens(input, &tok_count, err);
     if (*err)
         return;
+    print_tokens(tokens, tok_count);
 
     Parser parser = {tokens, tok_count, 0, tokens[0]};
     ASTNode *root = parse(&parser, err);
@@ -858,9 +864,11 @@ void interpret(const char *input, Env *env, int is_file, int *err)
         free_tokens(tokens, tok_count);
         return;
     }
+    print_ast(root, 0);
 
     if (parser.current_token.type != TOK_EOF)
     {
+	print_token(parser.current_token);
         fprintf(stderr, "Syntax Error: extra tokens at end of input\n");
         free_tokens(tokens, tok_count);
         free_ast(root);

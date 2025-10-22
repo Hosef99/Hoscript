@@ -269,8 +269,9 @@ ASTNode* parse_base(Parser* parser, int* err)
     if (match(parser, TOK_STRING))
     {
         ASTNode* node = malloc(sizeof(ASTNode));
-        node->name = parser->current_token.name;
+        node->name = strdup(parser->current_token.name);
         node->type = AST_STRING;
+	advance(parser);
         return node;
     }
 
@@ -414,6 +415,9 @@ void print_ast(ASTNode* node, int indent)
         case AST_NUM:
             printf("NUM: %lf\n", node->value);
             break;
+	case AST_STRING:
+	    printf("STR: %s\n", node->name);
+	    break;
         case AST_IDENT:
             printf("VAR: %s\n", node->name);
             break;
