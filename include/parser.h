@@ -18,6 +18,7 @@ typedef enum
     AST_ROW,
     AST_MAT,
     AST_INDEX,
+    AST_STRING,
     AST_PROGRAM,
     AST_EOF
 } ASTNodeType;

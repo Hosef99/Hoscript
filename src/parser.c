@@ -266,6 +266,14 @@ ASTNode* parse_base(Parser* parser, int* err)
     if (match(parser, TOK_LBRACK))
         return parse_mat(parser, err);
 
+    if (match(parser, TOK_STRING))
+    {
+        ASTNode* node = malloc(sizeof(ASTNode));
+        node->name = parser->current_token.name;
+        node->type = AST_STRING;
+        return node;
+    }
+
     if (match(parser, TOK_EOF) || match(parser, TOK_NEWLINE))
     {
         ASTNode* node = malloc(sizeof(ASTNode));

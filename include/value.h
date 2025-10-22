@@ -5,7 +5,8 @@ typedef enum
 {
     VAL_NUM,
     VAL_MAT,
-    VAL_EMP
+    VAL_EMP,
+    VAL_STR
 } ValueType;
 
 typedef struct
