@@ -74,7 +74,7 @@ void print_mat(double** mat, int rows, int cols, int* err)
     printf("]\n\n");
 }
 
-double** zero_mat_raw(int rows, int cols, int* err)
+double** zero_mat_raw(int rows, int cols, int* err) // added a new comment
 {
     if (rows <= 0 || cols <= 0) {
         fprintf(stderr, "Matrix Error: invalid input\n");
