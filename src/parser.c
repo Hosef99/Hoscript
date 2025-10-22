@@ -115,6 +115,28 @@ ASTNode* parse(Parser* parser, int* err)
     return program;
 }
 
+ASTNode* parse_comp(Parser* parser, int* err)
+{
+    ASTNode* left = parse_expr(parser, err); // parse the first term
+    while (match(parser, TOK_LESSER) || match(parser, TOK_GREATER)) 
+    {   
+        TokenType op = parser->current_token.type; // assign operator
+        advance(parser); // next token
+        ASTNode* right = parse_expr(parser, err);
+        left = make_op_node(op, left, right);
+
+        if (match(parser, TOK_ASSIGN))
+        {   
+            TokenType op = parser->current_token.type; // assign operator
+            advance(parser); // next token
+            ASTNode* right = parse_expr(parser, err);
+            left = make_op_node(op, left, right);
+
+        }
+        
+    }
+    return left;
+}
 // Top-level
 ASTNode* parse_expr(Parser* parser, int* err) // Handle + , - , = which take over parse_assign()
 {
@@ -131,7 +153,17 @@ ASTNode* parse_expr(Parser* parser, int* err) // Handle + , - , = which take ove
     }
 
     if (match(parser, TOK_ASSIGN)) 
-    {
+    {   
+        if (look_ahead(parse, TOK_ASSIGN, 1))
+        {
+            TokenType op = parser->current_token.type; // assign operator
+            advance(parser); // next token
+            ASTNode* right = parse_expr(parser, err);
+            left = make_op_node(op, left, right);
+
+            
+            return left;
+        }
         if (left->type != AST_IDENT && left->type != AST_INDEX) 
         {
             fprintf(stderr, "Syntax Error: invalid assignment target\n");
