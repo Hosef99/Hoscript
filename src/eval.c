@@ -61,6 +61,7 @@ Value quit(Value *args, int n, int *err);
 Value help(Value *args, int n, int *err);
 Value printvar(Value *args, int n, int *err);
 Value clear_screen(Value* args, int n, int* err);
+Value save_env(Value* args, int n, int* err);
 
 // EVAL RELATED FUNCTIONS
 Value eval(ASTNode *root, Env *env, int *err);
@@ -142,6 +143,7 @@ BuiltinEntry builtins[] = {
     {"help", help, 0, "help(): shows this screen"},
     {"printvar", printvar, 0, "printvar(): prints all the variables"},
     {"cls", clear_screen, 0, "cls(): clears the screen"},
+    {"save_env", save_env, 0, "save_env(filename): saves the environment"},
     {"sin", builtin_sin, 1, "sin(num): sine of angle"},
     {"cos", builtin_cos, 1, "cos(num): cosine of angle"},
     {"tan", builtin_tan, 1, "tan(num): tangent of angle"},
@@ -261,6 +263,32 @@ Value printvar(Value *args, int n, int *err)
     }
     return res;
 }
+
+Value save_env(Value* args, int n, int* err) {
+    (void) args;
+    (void) n;
+    (void) err;
+    Value res = {.type = VAL_EMP};
+    int size = 1024, pos = 0;
+    char* buffer = malloc(size * sizeof(char));
+
+    if (current_env == NULL) {
+        printf("No variables to save.\n");
+        return res;
+    }
+
+    if (current_env->var_count > 0)
+    {
+        for (int i = 0; i < current_env->var_count; i++) {
+            printf("%s = %s\n", current_env->var[i].name, string_value(current_env->var[i].value, err));
+        }
+    }
+    printf("\n");
+
+    return res;
+}
+
+// START OF EVALUATION FUNCTIONS
 
 void eval_program(ASTNode* node, Env *env, int *err)
 {
@@ -866,6 +894,7 @@ Value calc_func(const char *name, Value *args, int arg_size, int *err)
 
 void interpret(const char *input, Env *env, int is_file, int *err)
 {
+    set_current_env(env);
     int tok_count;
     if (input[0] == '\0')
     {
@@ -923,6 +952,8 @@ void interpret(const char *input, Env *env, int is_file, int *err)
             }
         }
     }
+
+    set_current_env(env);
 
     free_tokens(tokens, tok_count);
     free_ast(root);

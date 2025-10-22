@@ -28,6 +28,7 @@ typedef struct
 void print_value(Value value, const char* end, int* err);
 void free_value(Value value);
 Value copy_value(Value value, int* err);
+char* string_value(Value value, int* err);
 
 extern const Value EMPTY;
 #endif
