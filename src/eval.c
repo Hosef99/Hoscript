@@ -523,10 +523,16 @@ Value eval_unop(ASTNode *node, Env *env, int *err)
 
     if (node->unary.op == TOK_MINUS)
     {
-        if (val.type == VAL_NUM)
+        if (val.type == VAL_NUM) {
             val.number = -val.number;
-        else
+	}
+	else if (val.type == VAL_MAT) { 
+	    Value scalar = {.type = VAL_NUM, .number = -1};
+	    val = scalar_mat(val, scalar, err);
+	}
+        else {
             fprintf(stderr, "Type Error: unary minus only supports numbers\n");
+	}
     }
 
     return val;
@@ -591,76 +597,90 @@ Value eval_index(ASTNode* node, Env* env, int* err)
 
     int i = (int)index.number;
     Value v = EMPTY;
+    char buffer;
 
     int nested_as_inner = (node->parent && node->parent->type == AST_INDEX && node->parent->binary.left == node);
     int nested_as_outer = (node->binary.left && node->binary.left->type == AST_INDEX);
 
-    if (left.type != VAL_MAT) 
-    {
-        fprintf(stderr, "TypeError: invalid indexing target.\n");
-        *err = 1;
-        return EMPTY;
-    }
-
-    if (left.mat.rows == 1) 
-    {
-        if (nested_as_inner) 
-        {
-            if (i != 0) 
+    switch (left.type) {
+        case VAL_MAT:
+            if (left.mat.rows == 1) 
             {
-                fprintf(stderr, "Index Error: row index out of range for 1x%d vector.\n", left.mat.cols);
+                if (nested_as_inner) 
+                {
+                    if (i != 0) 
+                    {
+                        fprintf(stderr, "Index Error: row index out of range for 1x%d vector.\n", left.mat.cols);
+                        *err = 1;
+                        return EMPTY;
+                    }
+                    return left;
+                }
+
+                if (i < 0 || i >= left.mat.cols) 
+                {
+                    fprintf(stderr, "Index Error: column index out of range for 1x%d vector.\n", left.mat.cols);
+                    *err = 1;
+                    return EMPTY;
+                }
+                v.type = VAL_NUM;
+                v.number = left.mat.data[0][i];
+                return v;
+            }
+
+            if (nested_as_outer) 
+            {
+                if (left.mat.rows != 1) 
+                {
+                    fprintf(stderr, "TypeError: nested indexing expects a 1xN row.\n");
+                    *err = 1;
+                    return EMPTY;
+                }
+                if (i < 0 || i >= left.mat.cols) 
+                {
+                    fprintf(stderr, "Index Error: column index out of range.\n");
+                    *err = 1;
+                    return EMPTY;
+                }
+                v.type = VAL_NUM;
+                v.number = left.mat.data[0][i];
+                return v;
+            }
+
+            if (i < 0 || i >= left.mat.rows) 
+            {
+                fprintf(stderr, "Index Error: row index out of range for %dx%d matrix.\n", left.mat.rows, left.mat.cols);
                 *err = 1;
                 return EMPTY;
             }
-            return left;
-        }
 
-        if (i < 0 || i >= left.mat.cols) 
-        {
-            fprintf(stderr, "Index Error: column index out of range for 1x%d vector.\n", left.mat.cols);
+            v.type = VAL_MAT;
+            v.mat.rows = 1;
+            v.mat.cols = left.mat.cols;
+            v.mat.data = malloc(sizeof(double*));
+            v.mat.data[0] = malloc(sizeof(double) * v.mat.cols);
+            for (int c = 0; c < v.mat.cols; ++c)
+                v.mat.data[0][c] = left.mat.data[i][c];
+
+            return v;
+            break;
+        case VAL_STR:
+            if (strlen(left.string) <= index.number || index.number < 0) {
+                fprintf(stderr, "Index Error: index out of bounds\n");
+                *err = 1;
+                return EMPTY;
+            }
+            buffer = left.string[(int)index.number];
+            v.type = VAL_STR;
+            v.string = malloc(2*sizeof(char));
+            v.string[0] = buffer;
+            v.string[1] = '\0';
+            return v;
+        default:
+            fprintf(stderr, "TypeError: invalid indexing target.\n");
             *err = 1;
             return EMPTY;
-        }
-        v.type = VAL_NUM;
-        v.number = left.mat.data[0][i];
-        return v;
     }
-
-    if (nested_as_outer) 
-    {
-        if (left.mat.rows != 1) 
-        {
-            fprintf(stderr, "TypeError: nested indexing expects a 1xN row.\n");
-            *err = 1;
-            return EMPTY;
-        }
-        if (i < 0 || i >= left.mat.cols) 
-        {
-            fprintf(stderr, "Index Error: column index out of range.\n");
-            *err = 1;
-            return EMPTY;
-        }
-        v.type = VAL_NUM;
-        v.number = left.mat.data[0][i];
-        return v;
-    }
-
-    if (i < 0 || i >= left.mat.rows) 
-    {
-        fprintf(stderr, "Index Error: row index out of range for %dx%d matrix.\n", left.mat.rows, left.mat.cols);
-        *err = 1;
-        return EMPTY;
-    }
-
-    v.type = VAL_MAT;
-    v.mat.rows = 1;
-    v.mat.cols = left.mat.cols;
-    v.mat.data = malloc(sizeof(double*));
-    v.mat.data[0] = malloc(sizeof(double) * v.mat.cols);
-    for (int c = 0; c < v.mat.cols; ++c)
-        v.mat.data[0][c] = left.mat.data[i][c];
-
-    return v;
 }
 
 void assign_to_index(ASTNode* node, Value rhs, Env* env, int* err)
@@ -855,7 +875,6 @@ void interpret(const char *input, Env *env, int is_file, int *err)
     Token *tokens = generate_tokens(input, &tok_count, err);
     if (*err)
         return;
-    print_tokens(tokens, tok_count);
 
     Parser parser = {tokens, tok_count, 0, tokens[0]};
     ASTNode *root = parse(&parser, err);
@@ -864,7 +883,6 @@ void interpret(const char *input, Env *env, int is_file, int *err)
         free_tokens(tokens, tok_count);
         return;
     }
-    print_ast(root, 0);
 
     if (parser.current_token.type != TOK_EOF)
     {

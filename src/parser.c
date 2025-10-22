@@ -428,12 +428,8 @@ void print_ast(ASTNode* node, int indent)
             break;
         case AST_INDEX:
             printf("INDEX:\n");
-            for (int i = 0; i < indent + 1; i++) printf("  ");
-            printf("Left:\n");
-            print_ast(node->binary.left, indent + 2);
-            for (int i = 0; i < indent + 1; i++) printf("  ");
-            printf("Right:\n");
-            print_ast(node->binary.right, indent + 2);
+            print_ast(node->binary.left, indent + 1);
+            print_ast(node->binary.right, indent + 1);
             break;
         case AST_UNOP:
             printf("UNOP: %d\n", node->unary.op);

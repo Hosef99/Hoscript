@@ -209,7 +209,6 @@ Token lex_string(const char* input, int* pos, int* err)
             continue;
         }
 
-        printf("%c\n", input[*pos]);
         buffer[index++] = input[(*pos)++];
     }
     (*pos)++;
