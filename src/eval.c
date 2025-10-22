@@ -318,7 +318,7 @@ Value eval_addition(ASTNode *node, Env *env, int *err)
             return EMPTY;
         return res;
     default:
-        fprintf(stderr, "Value Error: value is empty\n");
+        fprintf(stderr, "Value Error: value does not support addition\n");
         *err = 1;
         return EMPTY;
     }
@@ -336,7 +336,7 @@ Value eval_subtraction(ASTNode *node, Env *env, int *err)
 
     if (a.type != b.type)
     {
-        fprintf(stderr, "Value Error: cannot perform subtraction on different types\n");
+        fprintf(stderr, "Value Error: value does not support subtraction\n");
         *err = 1;
         return EMPTY;
     }
@@ -380,6 +380,11 @@ Value eval_multiplication(ASTNode *node, Env *env, int *err)
             return scalar_mat(b, a, err);
         }
     }
+    if (a.type != b.type) {
+        fprintf(stderr, "Value Error: incompatible value types to perform multiplication\n");
+        *err = 1;
+        return EMPTY;
+    }
     switch (a.type)
     {
     case VAL_NUM:
@@ -392,7 +397,7 @@ Value eval_multiplication(ASTNode *node, Env *env, int *err)
             return EMPTY;
         return res;
     default:
-        fprintf(stderr, "Value Error: value is empty\n");
+        fprintf(stderr, "Value Error: value does not support multiplication\n");
         *err = 1;
         return EMPTY;
     }
@@ -414,17 +419,29 @@ Value eval_division(ASTNode *node, Env *env, int *err)
         *err = 1;
         return EMPTY;
     }
-    if (b.number != 0)
-    {
-        res.type = VAL_NUM;
-        res.number = a.number / b.number;
-        return res;
-    }
-    else
-    {
-        fprintf(stderr, "Value Error: division by zero\n");
+    if (a.type != b.type) {
+        fprintf(stderr, "Value Error: incompatible value types to perform division\n");
         *err = 1;
         return EMPTY;
+    }
+    switch (a.type) {
+        case VAL_NUM:
+            if (b.number != 0)
+            {
+                res.type = VAL_NUM;
+                res.number = a.number / b.number;
+                return res;
+            }
+            else
+            {
+                fprintf(stderr, "Value Error: division by zero\n");
+                *err = 1;
+                return EMPTY;
+            }
+        default:
+            fprintf(stderr, "Value Error: value does not support division\n");
+            *err = 1;
+            return EMPTY;
     }
 }
 
@@ -450,7 +467,7 @@ Value eval_exponentiation(ASTNode *node, Env *env, int *err)
             return EMPTY;
         return res;
     default:
-        fprintf(stderr, "Value Error: value is empty\n");
+        fprintf(stderr, "Value Error: value does not support exponentiation\n");
         *err = 1;
         return EMPTY;
     }

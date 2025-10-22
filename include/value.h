@@ -15,6 +15,7 @@ typedef struct
     union
     {
         double number;
+        char* string;
         struct
         {
             int rows;
@@ -22,7 +23,6 @@ typedef struct
             double** data;
         }mat;
     };
-    
 } Value;
 
 void print_value(Value value, const char* end, int* err);
