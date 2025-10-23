@@ -266,6 +266,15 @@ ASTNode* parse_base(Parser* parser, int* err)
     if (match(parser, TOK_LBRACK))
         return parse_mat(parser, err);
 
+    if (match(parser, TOK_STRING))
+    {
+        ASTNode* node = malloc(sizeof(ASTNode));
+        node->name = strdup(parser->current_token.name);
+        node->type = AST_STRING;
+	advance(parser);
+        return node;
+    }
+
     if (match(parser, TOK_EOF) || match(parser, TOK_NEWLINE))
     {
         ASTNode* node = malloc(sizeof(ASTNode));
@@ -406,6 +415,9 @@ void print_ast(ASTNode* node, int indent)
         case AST_NUM:
             printf("NUM: %lf\n", node->value);
             break;
+	case AST_STRING:
+	    printf("STR: %s\n", node->name);
+	    break;
         case AST_IDENT:
             printf("VAR: %s\n", node->name);
             break;
@@ -416,12 +428,8 @@ void print_ast(ASTNode* node, int indent)
             break;
         case AST_INDEX:
             printf("INDEX:\n");
-            for (int i = 0; i < indent + 1; i++) printf("  ");
-            printf("Left:\n");
-            print_ast(node->binary.left, indent + 2);
-            for (int i = 0; i < indent + 1; i++) printf("  ");
-            printf("Right:\n");
-            print_ast(node->binary.right, indent + 2);
+            print_ast(node->binary.left, indent + 1);
+            print_ast(node->binary.right, indent + 1);
             break;
         case AST_UNOP:
             printf("UNOP: %d\n", node->unary.op);

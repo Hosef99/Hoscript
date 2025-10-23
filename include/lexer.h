@@ -15,6 +15,7 @@ typedef enum {
     TOK_IDENT,      // variable or function names
     TOK_COMMA,      // ,
     TOK_SEMI,       // ;
+    TOK_STRING,     // strings
     TOK_ASSIGN,     // =
     TOK_NEWLINE,    // \n
     TOK_EOF         // end of input

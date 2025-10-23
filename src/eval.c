@@ -61,6 +61,8 @@ Value quit(Value *args, int n, int *err);
 Value help(Value *args, int n, int *err);
 Value printvar(Value *args, int n, int *err);
 Value clear_screen(Value* args, int n, int* err);
+Value save_env(Value* args, int n, int* err);
+Value read_env(Value* args, int n, int* err);
 
 // EVAL RELATED FUNCTIONS
 Value eval(ASTNode *root, Env *env, int *err);
@@ -68,6 +70,7 @@ Value get_var(const char *name, Env *env, int *err);
 void set_var(const char *name, Value value, Env *env, int *err);
 Value calc_func(const char *name, Value *args, int arg_size, int *err);
 void assign_to_index(ASTNode *node, Value rhs, Env *env, int *err);
+void interpret(const char *input, Env *env, int is_file, int *err);
 
 void set_current_env(Env *env)
 {
@@ -142,6 +145,8 @@ BuiltinEntry builtins[] = {
     {"help", help, 0, "help(): shows this screen"},
     {"printvar", printvar, 0, "printvar(): prints all the variables"},
     {"cls", clear_screen, 0, "cls(): clears the screen"},
+    {"save_env", save_env, 1, "save_env(filename): saves the environment into filename"},
+    {"read_env", read_env, 1, "read_env(filename): reads the environment from filename"},
     {"sin", builtin_sin, 1, "sin(num): sine of angle"},
     {"cos", builtin_cos, 1, "cos(num): cosine of angle"},
     {"tan", builtin_tan, 1, "tan(num): tangent of angle"},
@@ -190,12 +195,13 @@ Value print(Value *args, int n, int *err)
 {
     Value res;
     res.type = VAL_EMP;
-    char *end = "\n";
+    char *end = " ";
 
     for (int i = 0; i < n; i++)
     {
         print_value(args[i], end, err);
     }
+    printf("\n");
     return res;
 }
 
@@ -261,6 +267,67 @@ Value printvar(Value *args, int n, int *err)
     return res;
 }
 
+Value save_env(Value* args, int n, int* err) {
+    (void) n;
+    Value res = {.type = VAL_EMP};
+    int size = 128, pos = 0;
+    char* buffer = malloc(size * sizeof(char));
+
+    if (args[0].type != VAL_STR) {
+        fprintf(stderr, "Type Error: invalid file type\n");
+        *err = 1;
+        free(buffer);
+        return res;
+    }
+
+    if (current_env == NULL) {
+        printf("No variables to save.\n");
+        free(buffer);
+        return res;
+    }
+
+    if (current_env->var_count > 0)
+    {
+        for (int i = 0; i < current_env->var_count; i++) {
+            append_to_buffer(&buffer, &pos, &size, current_env->var[i].name);
+            append_to_buffer(&buffer, &pos, &size, "=");
+            append_to_buffer(&buffer, &pos, &size, string_value(current_env->var[i].value, err));
+            append_to_buffer(&buffer, &pos, &size, "\n");
+        }
+        printf("Successfully saved variables into %s.\n", args[0].string);
+        write_file(args[0].string, buffer, pos);
+    }
+    else {
+        printf("No variables to save.\n");
+    }
+
+    free(buffer);
+
+    return res;
+}
+
+Value read_env(Value* args, int n, int* err) {
+    (void) n;
+    Value res = {.type = VAL_EMP};
+    char* buffer;
+
+    if (args[0].type != VAL_STR) {
+        fprintf(stderr, "Type Error: invalid input type\n");
+        *err = 1;
+        return res;
+    }
+
+    buffer = read_file(args[0].string, err);
+    if (*err) return res;
+    interpret(buffer, current_env, IS_FILE, err);
+    printf("Successfully readed %s into environment.\n", args[0].string);
+    free(buffer);
+
+    return res;
+}
+
+// START OF EVALUATION FUNCTIONS
+
 void eval_program(ASTNode* node, Env *env, int *err)
 {
     for (int i = 0; i < node->program.count; i++)
@@ -318,7 +385,7 @@ Value eval_addition(ASTNode *node, Env *env, int *err)
             return EMPTY;
         return res;
     default:
-        fprintf(stderr, "Value Error: value is empty\n");
+        fprintf(stderr, "Value Error: value does not support addition\n");
         *err = 1;
         return EMPTY;
     }
@@ -336,7 +403,7 @@ Value eval_subtraction(ASTNode *node, Env *env, int *err)
 
     if (a.type != b.type)
     {
-        fprintf(stderr, "Value Error: cannot perform subtraction on different types\n");
+        fprintf(stderr, "Value Error: value does not support subtraction\n");
         *err = 1;
         return EMPTY;
     }
@@ -380,6 +447,11 @@ Value eval_multiplication(ASTNode *node, Env *env, int *err)
             return scalar_mat(b, a, err);
         }
     }
+    if (a.type != b.type) {
+        fprintf(stderr, "Value Error: incompatible value types to perform multiplication\n");
+        *err = 1;
+        return EMPTY;
+    }
     switch (a.type)
     {
     case VAL_NUM:
@@ -392,7 +464,7 @@ Value eval_multiplication(ASTNode *node, Env *env, int *err)
             return EMPTY;
         return res;
     default:
-        fprintf(stderr, "Value Error: value is empty\n");
+        fprintf(stderr, "Value Error: value does not support multiplication\n");
         *err = 1;
         return EMPTY;
     }
@@ -414,17 +486,29 @@ Value eval_division(ASTNode *node, Env *env, int *err)
         *err = 1;
         return EMPTY;
     }
-    if (b.number != 0)
-    {
-        res.type = VAL_NUM;
-        res.number = a.number / b.number;
-        return res;
-    }
-    else
-    {
-        fprintf(stderr, "Value Error: division by zero\n");
+    if (a.type != b.type) {
+        fprintf(stderr, "Value Error: incompatible value types to perform division\n");
         *err = 1;
         return EMPTY;
+    }
+    switch (a.type) {
+        case VAL_NUM:
+            if (b.number != 0)
+            {
+                res.type = VAL_NUM;
+                res.number = a.number / b.number;
+                return res;
+            }
+            else
+            {
+                fprintf(stderr, "Value Error: division by zero\n");
+                *err = 1;
+                return EMPTY;
+            }
+        default:
+            fprintf(stderr, "Value Error: value does not support division\n");
+            *err = 1;
+            return EMPTY;
     }
 }
 
@@ -450,7 +534,7 @@ Value eval_exponentiation(ASTNode *node, Env *env, int *err)
             return EMPTY;
         return res;
     default:
-        fprintf(stderr, "Value Error: value is empty\n");
+        fprintf(stderr, "Value Error: value does not support exponentiation\n");
         *err = 1;
         return EMPTY;
     }
@@ -505,10 +589,18 @@ Value eval_unop(ASTNode *node, Env *env, int *err)
 
     if (node->unary.op == TOK_MINUS)
     {
-        if (val.type == VAL_NUM)
+        if (val.type == VAL_NUM) {
             val.number = -val.number;
-        else
-            fprintf(stderr, "Type Error: unary minus only supports numbers\n");
+        }
+        else if (val.type == VAL_MAT) {
+            Value scalar = {.type = VAL_NUM, .number = -1};
+            val = scalar_mat(val, scalar, err);
+        }
+        else {
+            fprintf(stderr, "Type Error: unary minus only supports numbers and matrices\n");
+            *err = 1;
+            return EMPTY;
+        }
     }
 
     return val;
@@ -573,76 +665,90 @@ Value eval_index(ASTNode* node, Env* env, int* err)
 
     int i = (int)index.number;
     Value v = EMPTY;
+    char buffer;
 
     int nested_as_inner = (node->parent && node->parent->type == AST_INDEX && node->parent->binary.left == node);
     int nested_as_outer = (node->binary.left && node->binary.left->type == AST_INDEX);
 
-    if (left.type != VAL_MAT) 
-    {
-        fprintf(stderr, "TypeError: invalid indexing target.\n");
-        *err = 1;
-        return EMPTY;
-    }
-
-    if (left.mat.rows == 1) 
-    {
-        if (nested_as_inner) 
-        {
-            if (i != 0) 
+    switch (left.type) {
+        case VAL_MAT:
+            if (left.mat.rows == 1) 
             {
-                fprintf(stderr, "Index Error: row index out of range for 1x%d vector.\n", left.mat.cols);
+                if (nested_as_inner) 
+                {
+                    if (i != 0) 
+                    {
+                        fprintf(stderr, "Index Error: row index out of range for 1x%d vector.\n", left.mat.cols);
+                        *err = 1;
+                        return EMPTY;
+                    }
+                    return left;
+                }
+
+                if (i < 0 || i >= left.mat.cols) 
+                {
+                    fprintf(stderr, "Index Error: column index out of range for 1x%d vector.\n", left.mat.cols);
+                    *err = 1;
+                    return EMPTY;
+                }
+                v.type = VAL_NUM;
+                v.number = left.mat.data[0][i];
+                return v;
+            }
+
+            if (nested_as_outer) 
+            {
+                if (left.mat.rows != 1) 
+                {
+                    fprintf(stderr, "TypeError: nested indexing expects a 1xN row.\n");
+                    *err = 1;
+                    return EMPTY;
+                }
+                if (i < 0 || i >= left.mat.cols) 
+                {
+                    fprintf(stderr, "Index Error: column index out of range.\n");
+                    *err = 1;
+                    return EMPTY;
+                }
+                v.type = VAL_NUM;
+                v.number = left.mat.data[0][i];
+                return v;
+            }
+
+            if (i < 0 || i >= left.mat.rows) 
+            {
+                fprintf(stderr, "Index Error: row index out of range for %dx%d matrix.\n", left.mat.rows, left.mat.cols);
                 *err = 1;
                 return EMPTY;
             }
-            return left;
-        }
 
-        if (i < 0 || i >= left.mat.cols) 
-        {
-            fprintf(stderr, "Index Error: column index out of range for 1x%d vector.\n", left.mat.cols);
+            v.type = VAL_MAT;
+            v.mat.rows = 1;
+            v.mat.cols = left.mat.cols;
+            v.mat.data = malloc(sizeof(double*));
+            v.mat.data[0] = malloc(sizeof(double) * v.mat.cols);
+            for (int c = 0; c < v.mat.cols; ++c)
+                v.mat.data[0][c] = left.mat.data[i][c];
+
+            return v;
+            break;
+        case VAL_STR:
+            if (strlen(left.string) <= index.number || index.number < 0) {
+                fprintf(stderr, "Index Error: index out of bounds\n");
+                *err = 1;
+                return EMPTY;
+            }
+            buffer = left.string[(int)index.number];
+            v.type = VAL_STR;
+            v.string = malloc(2*sizeof(char));
+            v.string[0] = buffer;
+            v.string[1] = '\0';
+            return v;
+        default:
+            fprintf(stderr, "TypeError: invalid indexing target.\n");
             *err = 1;
             return EMPTY;
-        }
-        v.type = VAL_NUM;
-        v.number = left.mat.data[0][i];
-        return v;
     }
-
-    if (nested_as_outer) 
-    {
-        if (left.mat.rows != 1) 
-        {
-            fprintf(stderr, "TypeError: nested indexing expects a 1xN row.\n");
-            *err = 1;
-            return EMPTY;
-        }
-        if (i < 0 || i >= left.mat.cols) 
-        {
-            fprintf(stderr, "Index Error: column index out of range.\n");
-            *err = 1;
-            return EMPTY;
-        }
-        v.type = VAL_NUM;
-        v.number = left.mat.data[0][i];
-        return v;
-    }
-
-    if (i < 0 || i >= left.mat.rows) 
-    {
-        fprintf(stderr, "Index Error: row index out of range for %dx%d matrix.\n", left.mat.rows, left.mat.cols);
-        *err = 1;
-        return EMPTY;
-    }
-
-    v.type = VAL_MAT;
-    v.mat.rows = 1;
-    v.mat.cols = left.mat.cols;
-    v.mat.data = malloc(sizeof(double*));
-    v.mat.data[0] = malloc(sizeof(double) * v.mat.cols);
-    for (int c = 0; c < v.mat.cols; ++c)
-        v.mat.data[0][c] = left.mat.data[i][c];
-
-    return v;
 }
 
 void assign_to_index(ASTNode* node, Value rhs, Env* env, int* err)
@@ -722,6 +828,10 @@ Value eval(ASTNode* node, Env* env, int* err)
         a.type = VAL_NUM;
         a.number = node->value;
         return a;
+    case AST_STRING:
+	a.type = VAL_STR;
+	a.string = strdup(node->name);
+	return a;
     case AST_BINOP:
         return eval_binop(node, env, err);
     case AST_IDENT:
@@ -824,6 +934,7 @@ Value calc_func(const char *name, Value *args, int arg_size, int *err)
 
 void interpret(const char *input, Env *env, int is_file, int *err)
 {
+    set_current_env(env);
     int tok_count;
     if (input[0] == '\0')
     {
@@ -844,6 +955,7 @@ void interpret(const char *input, Env *env, int is_file, int *err)
 
     if (parser.current_token.type != TOK_EOF)
     {
+	print_token(parser.current_token);
         fprintf(stderr, "Syntax Error: extra tokens at end of input\n");
         free_tokens(tokens, tok_count);
         free_ast(root);
@@ -881,6 +993,8 @@ void interpret(const char *input, Env *env, int is_file, int *err)
         }
     }
 
+    set_current_env(env);
+
     free_tokens(tokens, tok_count);
     free_ast(root);
 }
@@ -915,7 +1029,7 @@ void start_repl()
 
 void run_file(const char *filename, int *err)
 {
-    char *source = read_file(filename);
+    char *source = read_file(filename, err);
     if (*err || !source)
     {
         fprintf(stderr, "Error: could not read file '%s'\n", filename);
