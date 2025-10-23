@@ -18,7 +18,8 @@ term -> mul ((MUL | DIV) mul)*
 mul -> factor (IMPLICIT_MUL factor)*
 factor -> (PLUS | MINUS)* power 
 power -> postfix (POW factor)?
-postfix  → base (LBRACK expr RBRACK)*
+postfix  → base (LBRACK slice RBRACK)*
+slice -> expr COLON expr
 base -> NUM | IDENT | func | LPAREN expr RPARAN | mat
 func -> IDENT LPARAN (expr (COMMA expr)*)? RPARAN
 mat -> LBRACK row (SEMICOLON row)* RBRACK
