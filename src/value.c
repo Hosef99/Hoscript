@@ -5,7 +5,7 @@
 #include "value.h"
 #include "mat_raw.h"
 
-static void append_to_buffer(char **buffer, int *pos, int *size, const char *text) {
+void append_to_buffer(char **buffer, int *pos, int *size, const char *text) {
     int len = strlen(text);
     while (*pos + len + 1 >= *size) {  // +1 for null terminator
         *size *= 2;

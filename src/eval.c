@@ -280,10 +280,18 @@ Value save_env(Value* args, int n, int* err) {
     if (current_env->var_count > 0)
     {
         for (int i = 0; i < current_env->var_count; i++) {
-            printf("%s = %s\n", current_env->var[i].name, string_value(current_env->var[i].value, err));
+            append_to_buffer(&buffer, &pos, &size, current_env->var[i].name);
+            append_to_buffer(&buffer, &pos, &size, "=");
+            append_to_buffer(&buffer, &pos, &size, string_value(current_env->var[i].value, err));
+            append_to_buffer(&buffer, &pos, &size, "\n");
         }
+        printf("Successfully saved variables.\n");
+        write_file("write.hos", buffer, pos);
     }
-    printf("\n");
+    else {
+        printf("No variables to save.\n");
+        return res;
+    }
 
     return res;
 }

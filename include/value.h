@@ -25,6 +25,7 @@ typedef struct
     };
 } Value;
 
+void append_to_buffer(char** buffer, int* pos, int* size, const char* text);
 void print_value(Value value, const char* end, int* err);
 void free_value(Value value);
 Value copy_value(Value value, int* err);
