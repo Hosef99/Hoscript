@@ -62,6 +62,7 @@ Value help(Value *args, int n, int *err);
 Value printvar(Value *args, int n, int *err);
 Value clear_screen(Value* args, int n, int* err);
 Value save_env(Value* args, int n, int* err);
+Value read_env(Value* args, int n, int* err);
 
 // EVAL RELATED FUNCTIONS
 Value eval(ASTNode *root, Env *env, int *err);
@@ -69,6 +70,7 @@ Value get_var(const char *name, Env *env, int *err);
 void set_var(const char *name, Value value, Env *env, int *err);
 Value calc_func(const char *name, Value *args, int arg_size, int *err);
 void assign_to_index(ASTNode *node, Value rhs, Env *env, int *err);
+void interpret(const char *input, Env *env, int is_file, int *err);
 
 void set_current_env(Env *env)
 {
@@ -143,7 +145,8 @@ BuiltinEntry builtins[] = {
     {"help", help, 0, "help(): shows this screen"},
     {"printvar", printvar, 0, "printvar(): prints all the variables"},
     {"cls", clear_screen, 0, "cls(): clears the screen"},
-    {"save_env", save_env, 1, "save_env(filename): saves the environment"},
+    {"save_env", save_env, 1, "save_env(filename): saves the environment into filename"},
+    {"read_env", read_env, 1, "read_env(filename): reads the environment from filename"},
     {"sin", builtin_sin, 1, "sin(num): sine of angle"},
     {"cos", builtin_cos, 1, "cos(num): cosine of angle"},
     {"tan", builtin_tan, 1, "tan(num): tangent of angle"},
@@ -273,11 +276,13 @@ Value save_env(Value* args, int n, int* err) {
     if (args[0].type != VAL_STR) {
         fprintf(stderr, "Type Error: invalid file type\n");
         *err = 1;
+        free(buffer);
         return res;
     }
 
     if (current_env == NULL) {
         printf("No variables to save.\n");
+        free(buffer);
         return res;
     }
 
@@ -294,8 +299,29 @@ Value save_env(Value* args, int n, int* err) {
     }
     else {
         printf("No variables to save.\n");
+    }
+
+    free(buffer);
+
+    return res;
+}
+
+Value read_env(Value* args, int n, int* err) {
+    (void) n;
+    Value res = {.type = VAL_EMP};
+    char* buffer;
+
+    if (args[0].type != VAL_STR) {
+        fprintf(stderr, "Type Error: invalid input type\n");
+        *err = 1;
         return res;
     }
+
+    buffer = read_file(args[0].string, err);
+    if (*err) return res;
+    interpret(buffer, current_env, IS_FILE, err);
+    printf("Successfully readed %s into environment.\n", args[0].string);
+    free(buffer);
 
     return res;
 }
@@ -565,14 +591,16 @@ Value eval_unop(ASTNode *node, Env *env, int *err)
     {
         if (val.type == VAL_NUM) {
             val.number = -val.number;
-	}
-	else if (val.type == VAL_MAT) { 
-	    Value scalar = {.type = VAL_NUM, .number = -1};
-	    val = scalar_mat(val, scalar, err);
-	}
+        }
+        else if (val.type == VAL_MAT) {
+            Value scalar = {.type = VAL_NUM, .number = -1};
+            val = scalar_mat(val, scalar, err);
+        }
         else {
-            fprintf(stderr, "Type Error: unary minus only supports numbers\n");
-	}
+            fprintf(stderr, "Type Error: unary minus only supports numbers and matrices\n");
+            *err = 1;
+            return EMPTY;
+        }
     }
 
     return val;
@@ -1001,7 +1029,7 @@ void start_repl()
 
 void run_file(const char *filename, int *err)
 {
-    char *source = read_file(filename);
+    char *source = read_file(filename, err);
     if (*err || !source)
     {
         fprintf(stderr, "Error: could not read file '%s'\n", filename);
