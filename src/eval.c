@@ -143,7 +143,7 @@ BuiltinEntry builtins[] = {
     {"help", help, 0, "help(): shows this screen"},
     {"printvar", printvar, 0, "printvar(): prints all the variables"},
     {"cls", clear_screen, 0, "cls(): clears the screen"},
-    {"save_env", save_env, 0, "save_env(filename): saves the environment"},
+    {"save_env", save_env, 1, "save_env(filename): saves the environment"},
     {"sin", builtin_sin, 1, "sin(num): sine of angle"},
     {"cos", builtin_cos, 1, "cos(num): cosine of angle"},
     {"tan", builtin_tan, 1, "tan(num): tangent of angle"},
@@ -265,12 +265,16 @@ Value printvar(Value *args, int n, int *err)
 }
 
 Value save_env(Value* args, int n, int* err) {
-    (void) args;
     (void) n;
-    (void) err;
     Value res = {.type = VAL_EMP};
-    int size = 1024, pos = 0;
+    int size = 128, pos = 0;
     char* buffer = malloc(size * sizeof(char));
+
+    if (args[0].type != VAL_STR) {
+        fprintf(stderr, "Type Error: invalid file type\n");
+        *err = 1;
+        return res;
+    }
 
     if (current_env == NULL) {
         printf("No variables to save.\n");
@@ -285,8 +289,8 @@ Value save_env(Value* args, int n, int* err) {
             append_to_buffer(&buffer, &pos, &size, string_value(current_env->var[i].value, err));
             append_to_buffer(&buffer, &pos, &size, "\n");
         }
-        printf("Successfully saved variables.\n");
-        write_file("write.hos", buffer, pos);
+        printf("Successfully saved variables into %s.\n", args[0].string);
+        write_file(args[0].string, buffer, pos);
     }
     else {
         printf("No variables to save.\n");

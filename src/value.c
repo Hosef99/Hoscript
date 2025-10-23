@@ -80,6 +80,8 @@ char* string_value(Value value, int* err)
     int size = 64, pos = 0;
     char* buffer = malloc(size);
     if (!buffer) {
+        fprintf(stderr, "Memory Error: allocation failed\n");
+        *err = 1;
         return NULL;
     }
     buffer[0] = '\0';
@@ -105,6 +107,11 @@ char* string_value(Value value, int* err)
                 }
             }
             append_to_buffer(&buffer, &pos, &size, "]");
+            return buffer;
+        case VAL_STR:
+            append_to_buffer(&buffer, &pos, &size, "\"");
+            append_to_buffer(&buffer, &pos, &size, value.string);
+            append_to_buffer(&buffer, &pos, &size, "\"");
             return buffer;
         default:
             return NULL;
