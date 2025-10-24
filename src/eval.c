@@ -1,3 +1,4 @@
+#include <stddef.h>
 #define _POSIX_C_SOURCE 200809L
 #define IS_FILE 1
 #define NOT_FILE 0
@@ -582,8 +583,67 @@ Value eval_mat(ASTNode *node, Env *env, int *err)
     return res;
 }
 
+Value eval_slice(ASTNode* node, Env* env, int* err)
+{
+    Value res = {.type = VAL_EMP};
+    Value left = eval(node->binary.left, env, err);
+    ASTNode* slice_node = node->binary.right;
+    Value start_val = eval(slice_node->binary.left, env, err);
+    Value end_val = eval(slice_node->binary.right, env, err);
+    if (start_val.type != VAL_NUM || end_val.type != VAL_NUM) {
+        fprintf(stderr, "Type Error: invalid index type.\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    // iterator check
+    if (!is_iterator(left)) {
+        fprintf(stderr, "Type Error: value is not an iterator.\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    int n;
+    if (left.type == VAL_MAT) {
+        if (left.mat.rows == 1)
+            n = left.mat.cols;
+        else 
+            n = left.mat.rows;
+    }
+    else if (left.type == VAL_STR) {
+        n = strlen(left.string);
+    }
+
+    // bounds check
+    if (start_val.number < 0 || start_val.number >= n || end_val.number < 0 || end_val.number >= n) {
+        fprintf(stderr, "Index Error: index out of bounds\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    int size = start_val.number > end_val.number ? 0 : (end_val.number - start_val.number);
+
+    if (left.type == VAL_STR) {
+        if (size == 0) {
+            res.type = VAL_STR;
+            res.string = malloc(1);
+            res.string = "";
+            return res;
+        }
+        char* slice_string = malloc(size + 1);
+        strncpy(slice_string, left.string + (size_t)start_val.number, (size_t)end_val.number - (size_t)start_val.number);
+        slice_string[(int)(end_val.number - start_val.number)] = '\0';
+        res.type = VAL_STR;
+        res.string = slice_string;
+    }
+    return res;
+}
+
 Value eval_index(ASTNode* node, Env* env, int* err)
 {
+    if (node->binary.right->type == AST_SLICE) {
+        return eval_slice(node, env, err);
+    }
     Value left = eval(node->binary.left, env, err);
     Value index = eval(node->binary.right, env, err);
     if (*err) return EMPTY;
@@ -682,6 +742,7 @@ Value eval_index(ASTNode* node, Env* env, int* err)
             return EMPTY;
     }
 }
+
 
 void assign_to_index(ASTNode* node, Value rhs, Env* env, int* err)
 {

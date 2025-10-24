@@ -5,6 +5,17 @@
 #include "value.h"
 #include "mat_raw.h"
 
+int is_iterator(Value value)
+{
+    switch (value.type) {
+        case VAL_MAT:
+        case VAL_STR:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
 void print_value(Value value, const char* end, int* err)
 {
     switch (value.type) {
