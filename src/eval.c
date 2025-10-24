@@ -583,63 +583,110 @@ Value eval_mat(ASTNode *node, Env *env, int *err)
     return res;
 }
 
+
 Value eval_slice(ASTNode* node, Env* env, int* err)
 {
     Value res = {.type = VAL_EMP};
     Value left = eval(node->binary.left, env, err);
     ASTNode* slice_node = node->binary.right;
+
     Value start_val = eval(slice_node->binary.left, env, err);
     Value end_val = eval(slice_node->binary.right, env, err);
+
     if (start_val.type != VAL_NUM || end_val.type != VAL_NUM) {
         fprintf(stderr, "Type Error: invalid index type.\n");
         *err = 1;
         return EMPTY;
     }
 
-    // iterator check
     if (!is_iterator(left)) {
         fprintf(stderr, "Type Error: value is not an iterator.\n");
         *err = 1;
         return EMPTY;
     }
 
-    int n;
-    if (left.type == VAL_MAT) {
-        if (left.mat.rows == 1)
-            n = left.mat.cols;
-        else 
-            n = left.mat.rows;
-    }
-    else if (left.type == VAL_STR) {
+    int n = 0;
+    if (left.type == VAL_MAT)
+        n = (left.mat.rows == 1) ? left.mat.cols : left.mat.rows;
+    else if (left.type == VAL_STR)
         n = strlen(left.string);
-    }
 
-    // bounds check
-    if (start_val.number < 0 || start_val.number >= n || end_val.number < 0 || end_val.number >= n) {
+    int start = (int)start_val.number;
+    int end = (int)end_val.number;
+
+    if (start < 0 || start >= n || end < 0 || end > n) {
         fprintf(stderr, "Index Error: index out of bounds\n");
         *err = 1;
         return EMPTY;
     }
 
-    int size = start_val.number > end_val.number ? 0 : (end_val.number - start_val.number);
-
-    if (left.type == VAL_STR) {
-        if (size == 0) {
+    if (end < start) {
+        if (left.type == VAL_STR) {
             res.type = VAL_STR;
             res.string = malloc(1);
             res.string[0] = '\0';
-            return res;
+        } else if (left.type == VAL_MAT) {
+            res.type = VAL_MAT;
+            res.mat.rows = 0;
+            res.mat.cols = (left.mat.rows == 1) ? 0 : left.mat.cols;
+            res.mat.data = NULL;
         }
+        return res;
+    }
+
+    int size = end - start;
+
+    if (left.type == VAL_STR) {
         char* slice_string = malloc(size + 1);
-        strncpy(slice_string, left.string + (size_t)start_val.number, (size_t)end_val.number - (size_t)start_val.number);
-        slice_string[(int)(end_val.number - start_val.number)] = '\0';
+        strncpy(slice_string, left.string + start, size);
+        slice_string[size] = '\0';
         res.type = VAL_STR;
         res.string = slice_string;
+        return res;
     }
+
     else if (left.type == VAL_MAT) {
-        
+        res.type = VAL_MAT;
+
+        if (left.mat.rows == 1) {
+            res.mat.rows = 1;
+            res.mat.cols = size;
+            res.mat.data = malloc(sizeof(double*));
+            res.mat.data[0] = malloc(sizeof(double) * size);
+
+            for (int c = 0; c < size; ++c)
+                res.mat.data[0][c] = left.mat.data[0][start + c];
+        }
+        else if (left.mat.cols == 1) {
+            res.mat.rows = size;
+            res.mat.cols = 1;
+            res.mat.data = malloc(sizeof(double*) * size);
+            for (int r = 0; r < size; ++r) {
+                res.mat.data[r] = malloc(sizeof(double));
+                res.mat.data[r][0] = left.mat.data[start + r][0];
+            }
+        }
+        else {
+            res.mat.rows = size;
+            res.mat.cols = left.mat.cols;
+            res.mat.data = malloc(sizeof(double*) * size);
+
+            for (int r = 0; r < size; ++r) {
+                res.mat.data[r] = malloc(sizeof(double) * left.mat.cols);
+                memcpy(
+                    res.mat.data[r],
+                    left.mat.data[start + r],
+                    sizeof(double) * left.mat.cols
+                );
+            }
+        }
+
+        return res;
     }
-    return res;
+
+    fprintf(stderr, "Type Error: cannot slice this value.\n");
+    *err = 1;
+    return EMPTY;
 }
 
 Value eval_index(ASTNode* node, Env* env, int* err)
