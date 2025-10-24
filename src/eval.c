@@ -627,7 +627,7 @@ Value eval_slice(ASTNode* node, Env* env, int* err)
         if (size == 0) {
             res.type = VAL_STR;
             res.string = malloc(1);
-            res.string = "";
+            res.string[0] = '\0';
             return res;
         }
         char* slice_string = malloc(size + 1);
@@ -635,6 +635,9 @@ Value eval_slice(ASTNode* node, Env* env, int* err)
         slice_string[(int)(end_val.number - start_val.number)] = '\0';
         res.type = VAL_STR;
         res.string = slice_string;
+    }
+    else if (left.type == VAL_MAT) {
+        
     }
     return res;
 }
