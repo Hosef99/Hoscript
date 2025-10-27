@@ -19,6 +19,7 @@ ASTNode* parse_func(Parser* parser, int* err);
 ASTNode* parse_mat(Parser* parser, int* err); 
 ASTNode* parse_row(Parser* parser, int* err);
 ASTNode* parse_postfix(Parser* parser, int* err); 
+ASTNode* parse_slice(Parser* parser, int* err);
 int implicit_mul(Parser* parser);
 
 static Token peek(Parser* parser, int offset) // offset tells the parser how many tokens ahead it should look 
@@ -236,7 +237,7 @@ ASTNode* parse_postfix(Parser* parser, int* err) // parsing []
     while (match(parser, TOK_LBRACK)) 
     {
         advance(parser);
-        ASTNode* index = parse_expr(parser, err); // returning an integer from parse_base()
+        ASTNode* index = parse_slice(parser, err); // returning an integer from parse_base()
         if (!match(parser, TOK_RBRACK)) 
         {
             fprintf(stderr, "Syntax Error: expected ']'\n");
@@ -247,6 +248,18 @@ ASTNode* parse_postfix(Parser* parser, int* err) // parsing []
         node = make_index_node(node, index);
     }
     return node;
+}
+
+ASTNode* parse_slice(Parser* parser, int* err)
+{
+    ASTNode* left = parse_expr(parser, err);
+    if (match(parser, TOK_COLON)) {
+        advance(parser);
+        ASTNode* right = parse_expr(parser, err);
+        left = make_op_node(TOK_COLON, left, right);
+        left->type = AST_SLICE;
+    }
+    return left;
 }
 
 ASTNode* parse_base(Parser* parser, int* err)
@@ -288,6 +301,15 @@ ASTNode* parse_base(Parser* parser, int* err)
 
     if (match(parser, TOK_LBRACK))
         return parse_mat(parser, err);
+
+    if (match(parser, TOK_STRING))
+    {
+        ASTNode* node = malloc(sizeof(ASTNode));
+        node->name = strdup(parser->current_token.name);
+        node->type = AST_STRING;
+	advance(parser);
+        return node;
+    }
 
     if (match(parser, TOK_EOF) || match(parser, TOK_NEWLINE))
     {
@@ -429,6 +451,9 @@ void print_ast(ASTNode* node, int indent)
         case AST_NUM:
             printf("NUM: %lf\n", node->value);
             break;
+	case AST_STRING:
+	    printf("STR: %s\n", node->name);
+	    break;
         case AST_IDENT:
             printf("VAR: %s\n", node->name);
             break;
@@ -439,12 +464,13 @@ void print_ast(ASTNode* node, int indent)
             break;
         case AST_INDEX:
             printf("INDEX:\n");
-            for (int i = 0; i < indent + 1; i++) printf("  ");
-            printf("Left:\n");
-            print_ast(node->binary.left, indent + 2);
-            for (int i = 0; i < indent + 1; i++) printf("  ");
-            printf("Right:\n");
-            print_ast(node->binary.right, indent + 2);
+            print_ast(node->binary.left, indent + 1);
+            print_ast(node->binary.right, indent + 1);
+            break;
+        case AST_SLICE:
+            printf("SLICE:\n");
+            print_ast(node->binary.left, indent + 1);
+            print_ast(node->binary.right, indent + 1);
             break;
         case AST_UNOP:
             printf("UNOP: %d\n", node->unary.op);
@@ -503,10 +529,10 @@ void free_ast(ASTNode* node)
 
         case AST_BINOP:
         case AST_INDEX:
+        case AST_SLICE:
             free_ast(node->binary.left);
             free_ast(node->binary.right);
             break;
-
         case AST_UNOP:
             free_ast(node->unary.right);
             break;

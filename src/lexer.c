@@ -9,6 +9,7 @@
 
 Token lex_number(const char* input, int* pos, int* err);
 Token lex_identifier(const char* input, int* pos, int* err);
+Token lex_string(const char* input, int* pos, int* err);
 
 char* type_to_string(TokenType type)
 {
@@ -27,6 +28,8 @@ char* type_to_string(TokenType type)
     case TOK_IDENT:     return "Identifier";
     case TOK_COMMA:     return "Comma";
     case TOK_SEMI:      return "Semicolon";
+    case TOK_COLON:     return "Colon";
+    case TOK_STRING:    return "String";
     case TOK_ASSIGN:    return "Equals";
     case TOK_LESSER:    return "Lesser";
     case TOK_GREATER:   return "Greater";
@@ -76,6 +79,9 @@ Token lex(const char* input, int* pos, int* err)
         if (input[*pos] == ']') { (*pos)++; return (Token){TOK_RBRACK, 0, NULL}; }
         if (input[*pos] == ',') { (*pos)++; return (Token){TOK_COMMA, 0, NULL}; }
         if (input[*pos] == ';') { (*pos)++; return (Token){TOK_SEMI, 0, NULL}; }
+        if (input[*pos] == ':') { (*pos)++; return (Token){TOK_COLON, 0, NULL}; }
+        if (input[*pos] == '"') { (*pos)++; return lex_string(input, pos, err);}
+        if (input[*pos] == '=') { (*pos)++; return (Token){TOK_ASSIGN, 0, NULL}; }
         if (input[*pos] == '\n') { (*pos)++; return (Token){TOK_NEWLINE, 0, NULL}; }
 
         if (input[*pos] == '<')
@@ -210,6 +216,52 @@ Token lex_identifier(const char* input, int* pos, int* err)
     }
     buffer[index] = '\0';
     token.name = strdup(buffer); // NEED TO BE CAREFUL OF MEMORY LEAK
+    token.value = 0;
+    return token;
+}
+
+Token lex_string(const char* input, int* pos, int* err)
+{
+    Token token;
+    token.type = TOK_STRING;
+    int size = 1024;
+    char* buffer = malloc(size * sizeof(char));
+    int index = 0;
+    while(input[*pos] != '"') {
+        if (index >= size) {
+            size *= 2;
+            buffer = realloc(buffer, size * sizeof(char));
+        }
+
+        if (input[*pos] == '\0') {
+            fprintf(stderr, "String Error: no closing \" found\n");
+            *err = 1;
+            return token;
+        }
+
+        if (input[*pos] == '\\') {
+            switch (input[(*pos) + 1]) {
+                case '\\':
+                    buffer[index++] = '\\';
+                    (*pos) += 2;
+                    break;
+                case 'n':
+                    buffer[index++] = '\n';
+                    (*pos) += 2;
+                    break;
+                default:
+                    fprintf(stderr, "String error: no suitable escape character for '\\'");
+                    *err = 1;
+                    return token;
+            }
+            continue;
+        }
+
+        buffer[index++] = input[(*pos)++];
+    }
+    (*pos)++;
+    buffer[index] = '\0';
+    token.name = strdup(buffer);
     token.value = 0;
     return token;
 }

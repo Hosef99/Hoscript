@@ -15,6 +15,8 @@ typedef enum {
     TOK_IDENT,      // variable or function names
     TOK_COMMA,      // ,
     TOK_SEMI,       // ;
+    TOK_COLON,      // :
+    TOK_STRING,     // strings
     TOK_ASSIGN,     // =
     TOK_LESSER,     // <
     TOK_GREATER,    // >

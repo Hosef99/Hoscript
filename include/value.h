@@ -6,7 +6,8 @@ typedef enum
     VAL_NUM,
     VAL_MAT,
     VAL_BOOL,
-    VAL_EMP
+    VAL_EMP,
+    VAL_STR
 } ValueType;
 
 typedef struct
@@ -16,6 +17,7 @@ typedef struct
     union
     {
         double number;
+        char* string;
         struct
         {
             int rows;
@@ -23,12 +25,14 @@ typedef struct
             double** data;
         }mat;
     };
-    
 } Value;
 
+int is_iterator(Value value);
+void append_to_buffer(char** buffer, int* pos, int* size, const char* text);
 void print_value(Value value, const char* end, int* err);
 void free_value(Value value);
 Value copy_value(Value value, int* err);
+char* string_value(Value value, int* err);
 
 extern const Value EMPTY;
 #endif

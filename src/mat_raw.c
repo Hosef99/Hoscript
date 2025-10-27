@@ -71,7 +71,7 @@ void print_mat(double** mat, int rows, int cols, int* err)
         }
         printf("\n");
     }
-    printf("]\n\n");
+    printf("]\n");
 }
 
 double** zero_mat_raw(int rows, int cols, int* err)
