@@ -28,6 +28,11 @@ char* type_to_string(TokenType type)
     case TOK_COMMA:     return "Comma";
     case TOK_SEMI:      return "Semicolon";
     case TOK_ASSIGN:    return "Equals";
+    case TOK_LESSER:    return "Lesser";
+    case TOK_GREATER:   return "Greater";
+    case TOK_LAND:      return "LesserEqual";
+    case TOK_GAND:      return "GreaterEqual";
+    case TOK_EQUAL:     return "Equal";
     case TOK_NEWLINE:   return "Newline";
     case TOK_EOF:       return "EOF";
     default:            return "Unknown";
@@ -71,8 +76,48 @@ Token lex(const char* input, int* pos, int* err)
         if (input[*pos] == ']') { (*pos)++; return (Token){TOK_RBRACK, 0, NULL}; }
         if (input[*pos] == ',') { (*pos)++; return (Token){TOK_COMMA, 0, NULL}; }
         if (input[*pos] == ';') { (*pos)++; return (Token){TOK_SEMI, 0, NULL}; }
-        if (input[*pos] == '=') { (*pos)++; return (Token){TOK_ASSIGN, 0, NULL}; }
         if (input[*pos] == '\n') { (*pos)++; return (Token){TOK_NEWLINE, 0, NULL}; }
+
+        if (input[*pos] == '<')
+        {
+            if (input[*pos + 1] == '=') 
+            {
+                *pos += 2;
+                return (Token){TOK_LAND, 0, NULL};  // <=
+            } 
+            else 
+            {
+                (*pos)++;
+                return (Token){TOK_LESSER, 0, NULL}; // <
+            }
+
+        }
+        if (input[*pos] == '>') 
+        {
+            if (input[*pos + 1] == '=') 
+            {
+                *pos += 2;
+                return (Token){TOK_GAND, 0, NULL};  // >=
+            } 
+            else 
+            {
+                (*pos)++;
+                return (Token){TOK_GREATER, 0, NULL}; // >
+            }
+        }
+        if (input[*pos] == '=')
+        {
+            if (input[*pos + 1] == '=')
+            {
+                *pos += 2;
+                return (Token){TOK_EQUAL, 0, NULL}; // ==
+            }
+            else
+            {
+                (*pos)++;
+                return (Token){TOK_ASSIGN, 0, NULL}; // =
+            }
+        }
         if (isalpha(input[*pos]) || input[*pos] == '_') return lex_identifier(input, pos, err);
         
         printf("Syntax error, or not yet implemented.\n");

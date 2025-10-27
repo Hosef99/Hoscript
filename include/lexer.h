@@ -18,6 +18,9 @@ typedef enum {
     TOK_ASSIGN,     // =
     TOK_LESSER,     // <
     TOK_GREATER,    // >
+    TOK_LAND,       // <=
+    TOK_GAND,       // >=
+    TOK_EQUAL,      // ==
     TOK_NEWLINE,    // \n
     TOK_EOF         // end of input
 } TokenType;

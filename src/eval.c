@@ -68,6 +68,7 @@ Value get_var(const char *name, Env *env, int *err);
 void set_var(const char *name, Value value, Env *env, int *err);
 Value calc_func(const char *name, Value *args, int arg_size, int *err);
 void assign_to_index(ASTNode *node, Value rhs, Env *env, int *err);
+Value eval_equal(ASTNode *node, Env *env, int *err);
 
 void set_current_env(Env *env)
 {
@@ -458,6 +459,12 @@ Value eval_exponentiation(ASTNode *node, Env *env, int *err)
 
 Value eval_binop(ASTNode *node, Env *env, int *err)
 {
+    Value left = eval(node->binary.left, env, err);
+    if (*err) return EMPTY;
+    Value right = eval(node->binary.right, env, err);
+    if (*err) return EMPTY;
+
+    Value res;
     switch (node->binary.op)
     {
     case TOK_PLUS:
@@ -470,6 +477,26 @@ Value eval_binop(ASTNode *node, Env *env, int *err)
         return eval_division(node, env, err);
     case TOK_POW:
         return eval_exponentiation(node, env, err);
+    case TOK_LESSER:
+        res.type = VAL_NUM;
+        res.number = left.number < right.number;
+        return res;
+    case TOK_GREATER:
+        res.type = VAL_NUM;
+        res.number = left.number > right.number;
+        return res;
+    case TOK_LAND:
+        res.type = VAL_NUM;
+        res.number = left.number <= right.number;
+        return res;
+    case TOK_GAND:
+        res.type = VAL_NUM;
+        res.number = left.number >= right.number;
+        return res;
+    case TOK_EQUAL:
+        return eval_equal(node, env, err);
+        return res;
+
     default:
         return EMPTY;
     }
@@ -709,6 +736,54 @@ void assign_to_index(ASTNode* node, Value rhs, Env* env, int* err)
         mat.mat.data[0][j] = rhs.number; // only access the first row and assign the value of specific column , doesnt matter if the row is more than 1
         set_var(node->binary.left->name, mat, env, err);
     }
+}
+
+Value eval_equal(ASTNode *node, Env *env, int *err)
+{
+    Value left = eval(node->binary.left, env, err);
+    if (*err) return EMPTY;
+
+    Value right = eval(node->binary.right, env, err);
+    if (*err) return EMPTY;
+
+    Value result;
+    result.type = VAL_BOOL;
+    result.boolean = 0;
+
+    if (left.type == VAL_NUM && right.type == VAL_NUM) 
+    {
+        result.boolean = (left.number == right.number) ;
+        return result;
+    }
+
+    if (left.type == VAL_MAT && right.type == VAL_MAT) 
+    {
+        if (left.mat.rows != right.mat.rows || left.mat.cols != right.mat.cols) 
+        {
+            result.boolean = 0;
+            return result;
+        }
+
+        for (int i = 0; i < left.mat.rows; i++) 
+        {
+            for (int j = 0; j < left.mat.cols; j++) 
+            {
+                if ((left.mat.data[i][j] != right.mat.data[i][j])) 
+                {
+                    result.boolean = 0;
+                    return result;
+                }
+            }
+        }
+
+        result.boolean = 1;
+        return result;
+
+    }
+
+    fprintf(stderr, "Type Error: cannot compare matrix and scalar with ==\n");
+    *err = 1;
+    return EMPTY;
 }
 
 Value eval(ASTNode* node, Env* env, int* err)

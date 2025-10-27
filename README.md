@@ -11,8 +11,7 @@ This project is a calculator that is capable of doing basic operations.
 
 ## Grammar
 ```
-parse -> expr EOF
-a̶s̶s̶i̶g̶n̶ -̶> I̶D̶E̶N̶T̶ A̶S̶S̶I̶G̶N̶ e̶x̶p̶r̶
+parse -> assign EOF
 expr -> term ((PLUS | MINUS) term)*| (IDENT | postfix) ASSIGN expr
 term -> mul ((MUL | DIV) mul)*
 mul -> factor (IMPLICIT_MUL factor)*

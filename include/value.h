@@ -5,12 +5,14 @@ typedef enum
 {
     VAL_NUM,
     VAL_MAT,
+    VAL_BOOL,
     VAL_EMP
 } ValueType;
 
 typedef struct
 {
     ValueType type;
+    char boolean;
     union
     {
         double number;
