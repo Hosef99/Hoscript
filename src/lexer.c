@@ -81,7 +81,6 @@ Token lex(const char* input, int* pos, int* err)
         if (input[*pos] == ';') { (*pos)++; return (Token){TOK_SEMI, 0, NULL}; }
         if (input[*pos] == ':') { (*pos)++; return (Token){TOK_COLON, 0, NULL}; }
         if (input[*pos] == '"') { (*pos)++; return lex_string(input, pos, err);}
-        if (input[*pos] == '=') { (*pos)++; return (Token){TOK_ASSIGN, 0, NULL}; }
         if (input[*pos] == '\n') { (*pos)++; return (Token){TOK_NEWLINE, 0, NULL}; }
 
         if (input[*pos] == '<')
@@ -124,6 +123,7 @@ Token lex(const char* input, int* pos, int* err)
                 return (Token){TOK_ASSIGN, 0, NULL}; // =
             }
         }
+        if (input[*pos] == '=') { (*pos)++; return (Token){TOK_ASSIGN, 0, NULL}; }
         if (isalpha(input[*pos]) || input[*pos] == '_') return lex_identifier(input, pos, err);
         
         printf("Syntax error, or not yet implemented.\n");
