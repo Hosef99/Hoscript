@@ -16,6 +16,23 @@ int is_iterator(Value value)
     }
 }
 
+void append_to_buffer(char **buffer, int *pos, int *size, const char *text) {
+    int len = strlen(text);
+    while (*pos + len + 1 >= *size) {  // +1 for null terminator
+        *size *= 2;
+        char *newbuf = realloc(*buffer, *size);
+        if (!newbuf) {
+            free(*buffer);
+            fprintf(stderr, "Memory reallocation failed.\n");
+            exit(EXIT_FAILURE);
+        }
+        *buffer = newbuf;
+    }
+    memcpy(*buffer + *pos, text, len);
+    *pos += len;
+    (*buffer)[*pos] = '\0';
+}
+
 void print_value(Value value, const char* end, int* err)
 {
     switch (value.type) {
@@ -66,5 +83,48 @@ Value copy_value(Value value, int* err)
             fprintf(stderr, "Value Error: value is empty\n");
             *err = 1;
             return EMPTY;
+    }
+}
+
+char* string_value(Value value, int* err)
+{
+    int size = 64, pos = 0;
+    char* buffer = malloc(size);
+    if (!buffer) {
+        fprintf(stderr, "Memory Error: allocation failed\n");
+        *err = 1;
+        return NULL;
+    }
+    buffer[0] = '\0';
+    char temp[64];
+
+    switch (value.type) {
+        case VAL_NUM:
+            snprintf(temp, sizeof(temp), "%g", value.number);
+            append_to_buffer(&buffer, &pos, &size, temp);
+            return buffer;
+        case VAL_MAT:
+            append_to_buffer(&buffer, &pos, &size, "[");
+            for (int i = 0; i < value.mat.rows; i++) {
+                for (int j = 0; j < value.mat.cols; j++) {
+                    snprintf(temp, sizeof(temp), "%g", value.mat.data[i][j]);
+                    append_to_buffer(&buffer, &pos, &size, temp);
+                    if (j != value.mat.cols - 1) {
+                        append_to_buffer(&buffer, &pos, &size, ",");
+                    }
+                }
+                if (i != value.mat.rows - 1) {
+                    append_to_buffer(&buffer, &pos, &size, ";");
+                }
+            }
+            append_to_buffer(&buffer, &pos, &size, "]");
+            return buffer;
+        case VAL_STR:
+            append_to_buffer(&buffer, &pos, &size, "\"");
+            append_to_buffer(&buffer, &pos, &size, value.string);
+            append_to_buffer(&buffer, &pos, &size, "\"");
+            return buffer;
+        default:
+            return NULL;
     }
 }
