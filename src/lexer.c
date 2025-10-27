@@ -28,6 +28,7 @@ char* type_to_string(TokenType type)
     case TOK_IDENT:     return "Identifier";
     case TOK_COMMA:     return "Comma";
     case TOK_SEMI:      return "Semicolon";
+    case TOK_COLON:     return "Colon";
     case TOK_STRING:    return "String";
     case TOK_ASSIGN:    return "Equals";
     case TOK_NEWLINE:   return "Newline";
@@ -73,6 +74,7 @@ Token lex(const char* input, int* pos, int* err)
         if (input[*pos] == ']') { (*pos)++; return (Token){TOK_RBRACK, 0, NULL}; }
         if (input[*pos] == ',') { (*pos)++; return (Token){TOK_COMMA, 0, NULL}; }
         if (input[*pos] == ';') { (*pos)++; return (Token){TOK_SEMI, 0, NULL}; }
+        if (input[*pos] == ':') { (*pos)++; return (Token){TOK_COLON, 0, NULL}; }
         if (input[*pos] == '"') { (*pos)++; return lex_string(input, pos, err);}
         if (input[*pos] == '=') { (*pos)++; return (Token){TOK_ASSIGN, 0, NULL}; }
         if (input[*pos] == '\n') { (*pos)++; return (Token){TOK_NEWLINE, 0, NULL}; }

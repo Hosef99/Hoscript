@@ -17,6 +17,7 @@ ASTNode* parse_func(Parser* parser, int* err);
 ASTNode* parse_mat(Parser* parser, int* err); 
 ASTNode* parse_row(Parser* parser, int* err);
 ASTNode* parse_postfix(Parser* parser, int* err); 
+ASTNode* parse_slice(Parser* parser, int* err);
 int implicit_mul(Parser* parser);
 
 static Token peek(Parser* parser, int offset) // offset tells the parser how many tokens ahead it should look 
@@ -213,7 +214,7 @@ ASTNode* parse_postfix(Parser* parser, int* err) // parsing []
     while (match(parser, TOK_LBRACK)) 
     {
         advance(parser);
-        ASTNode* index = parse_expr(parser, err); // returning an integer from parse_base()
+        ASTNode* index = parse_slice(parser, err); // returning an integer from parse_base()
         if (!match(parser, TOK_RBRACK)) 
         {
             fprintf(stderr, "Syntax Error: expected ']'\n");
@@ -224,6 +225,18 @@ ASTNode* parse_postfix(Parser* parser, int* err) // parsing []
         node = make_index_node(node, index);
     }
     return node;
+}
+
+ASTNode* parse_slice(Parser* parser, int* err)
+{
+    ASTNode* left = parse_expr(parser, err);
+    if (match(parser, TOK_COLON)) {
+        advance(parser);
+        ASTNode* right = parse_expr(parser, err);
+        left = make_op_node(TOK_COLON, left, right);
+        left->type = AST_SLICE;
+    }
+    return left;
 }
 
 ASTNode* parse_base(Parser* parser, int* err)
@@ -431,6 +444,11 @@ void print_ast(ASTNode* node, int indent)
             print_ast(node->binary.left, indent + 1);
             print_ast(node->binary.right, indent + 1);
             break;
+        case AST_SLICE:
+            printf("SLICE:\n");
+            print_ast(node->binary.left, indent + 1);
+            print_ast(node->binary.right, indent + 1);
+            break;
         case AST_UNOP:
             printf("UNOP: %d\n", node->unary.op);
             print_ast(node->unary.right, indent + 1);
@@ -488,10 +506,10 @@ void free_ast(ASTNode* node)
 
         case AST_BINOP:
         case AST_INDEX:
+        case AST_SLICE:
             free_ast(node->binary.left);
             free_ast(node->binary.right);
             break;
-
         case AST_UNOP:
             free_ast(node->unary.right);
             break;

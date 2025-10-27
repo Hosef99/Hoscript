@@ -5,6 +5,17 @@
 #include "value.h"
 #include "mat_raw.h"
 
+int is_iterator(Value value)
+{
+    switch (value.type) {
+        case VAL_MAT:
+        case VAL_STR:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
 void append_to_buffer(char **buffer, int *pos, int *size, const char *text) {
     int len = strlen(text);
     while (*pos + len + 1 >= *size) {  // +1 for null terminator

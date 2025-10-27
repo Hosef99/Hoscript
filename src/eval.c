@@ -1,3 +1,4 @@
+#include <stddef.h>
 #define _POSIX_C_SOURCE 200809L
 #define IS_FILE 1
 #define NOT_FILE 0
@@ -357,33 +358,32 @@ Value eval_assign(ASTNode *node, Env *env, int *err)
     return EMPTY;
 }
 
-Value eval_addition(ASTNode *node, Env *env, int *err)
+Value eval_addition(Value left, Value right, int *err)
 {
-    Value a, b, res;
-    a = eval(node->binary.left, env, err);
-    if (*err)
-        return EMPTY;
-    b = eval(node->binary.right, env, err);
-    if (*err)
-        return EMPTY;
-
-    if (a.type != b.type)
+    Value res;
+    if (left.type != right.type)
     {
         fprintf(stderr, "Value Error: cannot perform addition on different types\n");
         *err = 1;
         return EMPTY;
     }
-    switch (a.type)
+    switch (left.type)
     {
     case VAL_NUM:
         res.type = VAL_NUM;
-        res.number = a.number + b.number;
+        res.number = left.number + right.number;
         return res;
     case VAL_MAT:
-        res = add_mat(a, b, err);
+        res = add_mat(left, right, err);
         if (*err)
             return EMPTY;
         return res;
+    case VAL_STR:
+        res.type = VAL_STR;
+        res.string = strdup(left.string);
+        strcat(res.string, right.string);
+        return res;
+        break;
     default:
         fprintf(stderr, "Value Error: value does not support addition\n");
         *err = 1;
@@ -391,30 +391,23 @@ Value eval_addition(ASTNode *node, Env *env, int *err)
     }
 }
 
-Value eval_subtraction(ASTNode *node, Env *env, int *err)
+Value eval_subtraction(Value left, Value right, int *err)
 {
-    Value a, b, res;
-    a = eval(node->binary.left, env, err);
-    if (*err)
-        return EMPTY;
-    b = eval(node->binary.right, env, err);
-    if (*err)
-        return EMPTY;
-
-    if (a.type != b.type)
+    Value res;
+    if (left.type != right.type)
     {
         fprintf(stderr, "Value Error: value does not support subtraction\n");
         *err = 1;
         return EMPTY;
     }
-    switch (a.type)
+    switch (left.type)
     {
     case VAL_NUM:
         res.type = VAL_NUM;
-        res.number = a.number - b.number;
+        res.number = left.number - right.number;
         return res;
     case VAL_MAT:
-        res = sub_mat(a, b, err);
+        res = sub_mat(left, right, err);
         if (*err)
             return EMPTY;
         return res;
@@ -425,41 +418,34 @@ Value eval_subtraction(ASTNode *node, Env *env, int *err)
     }
 }
 
-Value eval_multiplication(ASTNode *node, Env *env, int *err)
+Value eval_multiplication(Value left, Value right, int *err)
 {
-    Value a, b, res;
-    a = eval(node->binary.left, env, err);
-    if (*err)
-        return EMPTY;
-    b = eval(node->binary.right, env, err);
-    if (*err)
-        return EMPTY;
-
-    if ((a.type == VAL_MAT && b.type == VAL_NUM) || (b.type == VAL_MAT && a.type == VAL_NUM))
+    Value res;
+    if ((left.type == VAL_MAT && right.type == VAL_NUM) || (right.type == VAL_MAT && left.type == VAL_NUM))
     {
         // scalar * matrix multiplication
-        if (a.type == VAL_MAT)
+        if (left.type == VAL_MAT)
         {
-            return scalar_mat(a, b, err);
+            return scalar_mat(left, right, err);
         }
         else
         {
-            return scalar_mat(b, a, err);
+            return scalar_mat(right, left, err);
         }
     }
-    if (a.type != b.type) {
+    if (left.type != right.type) {
         fprintf(stderr, "Value Error: incompatible value types to perform multiplication\n");
         *err = 1;
         return EMPTY;
     }
-    switch (a.type)
+    switch (left.type)
     {
     case VAL_NUM:
         res.type = VAL_NUM;
-        res.number = a.number * b.number;
+        res.number = left.number * right.number;
         return res;
     case VAL_MAT:
-        res = mul_mat(a, b, err);
+        res = mul_mat(left, right, err);
         if (*err)
             return EMPTY;
         return res;
@@ -470,33 +456,26 @@ Value eval_multiplication(ASTNode *node, Env *env, int *err)
     }
 }
 
-Value eval_division(ASTNode *node, Env *env, int *err)
+Value eval_division(Value left, Value right, int *err)
 {
-    Value a, b, res;
-    a = eval(node->binary.left, env, err);
-    if (*err)
-        return EMPTY;
-    b = eval(node->binary.right, env, err);
-    if (*err)
-        return EMPTY;
-
-    if (a.type == VAL_MAT)
+    Value res;
+    if (left.type == VAL_MAT)
     {
         fprintf(stderr, "Value Error: cannot perform division on matrices\n");
         *err = 1;
         return EMPTY;
     }
-    if (a.type != b.type) {
+    if (left.type != right.type) {
         fprintf(stderr, "Value Error: incompatible value types to perform division\n");
         *err = 1;
         return EMPTY;
     }
-    switch (a.type) {
+    switch (left.type) {
         case VAL_NUM:
-            if (b.number != 0)
+            if (right.number != 0)
             {
                 res.type = VAL_NUM;
-                res.number = a.number / b.number;
+                res.number = left.number / right.number;
                 return res;
             }
             else
@@ -512,24 +491,17 @@ Value eval_division(ASTNode *node, Env *env, int *err)
     }
 }
 
-Value eval_exponentiation(ASTNode *node, Env *env, int *err)
+Value eval_exponentiation(Value left, Value right, int *err)
 {
-    Value a, b, res;
-    a = eval(node->binary.left, env, err);
-    if (*err)
-        return EMPTY;
-    b = eval(node->binary.right, env, err);
-    if (*err)
-        return EMPTY;
-
-    switch (a.type)
+    Value res;
+    switch (left.type)
     {
     case VAL_NUM:
         res.type = VAL_NUM;
-        res.number = pow(a.number, b.number);
+        res.number = pow(left.number, right.number);
         return res;
     case VAL_MAT:
-        res = pow_mat(a, b, err);
+        res = pow_mat(left, right, err);
         if (*err)
             return EMPTY;
         return res;
@@ -542,21 +514,26 @@ Value eval_exponentiation(ASTNode *node, Env *env, int *err)
 
 Value eval_binop(ASTNode *node, Env *env, int *err)
 {
+    Value left = eval(node->binary.left, env, err);
+    Value right = eval(node->binary.right, env, err);
+    if (*err) return EMPTY;
     switch (node->binary.op)
     {
     case TOK_PLUS:
-        return eval_addition(node, env, err);
+        return eval_addition(left, right, err);
     case TOK_MINUS:
-        return eval_subtraction(node, env, err);
+        return eval_subtraction(left, right, err);
     case TOK_MUL:
-        return eval_multiplication(node, env, err);
+        return eval_multiplication(left, right, err);
     case TOK_DIV:
-        return eval_division(node, env, err);
+        return eval_division(left, right, err);
     case TOK_POW:
-        return eval_exponentiation(node, env, err);
+        return eval_exponentiation(left, right, err);
     default:
         return EMPTY;
     }
+    free_value(left);
+    free_value(right);
 }
 
 Value eval_func(ASTNode *node, Env *env, int *err)
@@ -650,8 +627,117 @@ Value eval_mat(ASTNode *node, Env *env, int *err)
     return res;
 }
 
+
+Value eval_slice(ASTNode* node, Env* env, int* err)
+{
+    Value res = {.type = VAL_EMP};
+    Value left = eval(node->binary.left, env, err);
+    ASTNode* slice_node = node->binary.right;
+
+    Value start_val = eval(slice_node->binary.left, env, err);
+    Value end_val = eval(slice_node->binary.right, env, err);
+
+    if (start_val.type != VAL_NUM || end_val.type != VAL_NUM) {
+        fprintf(stderr, "Type Error: invalid index type.\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    if (!is_iterator(left)) {
+        fprintf(stderr, "Type Error: value is not an iterator.\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    int n = 0;
+    if (left.type == VAL_MAT)
+        n = (left.mat.rows == 1) ? left.mat.cols : left.mat.rows;
+    else if (left.type == VAL_STR)
+        n = strlen(left.string);
+
+    int start = (int)start_val.number;
+    int end = (int)end_val.number;
+
+    if (start < 0 || start >= n || end < 0 || end > n) {
+        fprintf(stderr, "Index Error: index out of bounds\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    if (end < start) {
+        if (left.type == VAL_STR) {
+            res.type = VAL_STR;
+            res.string = malloc(1);
+            res.string[0] = '\0';
+        } else if (left.type == VAL_MAT) {
+            res.type = VAL_MAT;
+            res.mat.rows = 0;
+            res.mat.cols = (left.mat.rows == 1) ? 0 : left.mat.cols;
+            res.mat.data = NULL;
+        }
+        return res;
+    }
+
+    int size = end - start;
+
+    if (left.type == VAL_STR) {
+        char* slice_string = malloc(size + 1);
+        strncpy(slice_string, left.string + start, size);
+        slice_string[size] = '\0';
+        res.type = VAL_STR;
+        res.string = slice_string;
+        return res;
+    }
+
+    else if (left.type == VAL_MAT) {
+        res.type = VAL_MAT;
+
+        if (left.mat.rows == 1) {
+            res.mat.rows = 1;
+            res.mat.cols = size;
+            res.mat.data = malloc(sizeof(double*));
+            res.mat.data[0] = malloc(sizeof(double) * size);
+
+            for (int c = 0; c < size; ++c)
+                res.mat.data[0][c] = left.mat.data[0][start + c];
+        }
+        else if (left.mat.cols == 1) {
+            res.mat.rows = size;
+            res.mat.cols = 1;
+            res.mat.data = malloc(sizeof(double*) * size);
+            for (int r = 0; r < size; ++r) {
+                res.mat.data[r] = malloc(sizeof(double));
+                res.mat.data[r][0] = left.mat.data[start + r][0];
+            }
+        }
+        else {
+            res.mat.rows = size;
+            res.mat.cols = left.mat.cols;
+            res.mat.data = malloc(sizeof(double*) * size);
+
+            for (int r = 0; r < size; ++r) {
+                res.mat.data[r] = malloc(sizeof(double) * left.mat.cols);
+                memcpy(
+                    res.mat.data[r],
+                    left.mat.data[start + r],
+                    sizeof(double) * left.mat.cols
+                );
+            }
+        }
+
+        return res;
+    }
+
+    fprintf(stderr, "Type Error: cannot slice this value.\n");
+    *err = 1;
+    return EMPTY;
+}
+
 Value eval_index(ASTNode* node, Env* env, int* err)
 {
+    if (node->binary.right->type == AST_SLICE) {
+        return eval_slice(node, env, err);
+    }
     Value left = eval(node->binary.left, env, err);
     Value index = eval(node->binary.right, env, err);
     if (*err) return EMPTY;
@@ -750,6 +836,7 @@ Value eval_index(ASTNode* node, Env* env, int* err)
             return EMPTY;
     }
 }
+
 
 void assign_to_index(ASTNode* node, Value rhs, Env* env, int* err)
 {
