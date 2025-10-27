@@ -292,33 +292,32 @@ Value eval_assign(ASTNode *node, Env *env, int *err)
     return EMPTY;
 }
 
-Value eval_addition(ASTNode *node, Env *env, int *err)
+Value eval_addition(Value left, Value right, int *err)
 {
-    Value a, b, res;
-    a = eval(node->binary.left, env, err);
-    if (*err)
-        return EMPTY;
-    b = eval(node->binary.right, env, err);
-    if (*err)
-        return EMPTY;
-
-    if (a.type != b.type)
+    Value res;
+    if (left.type != right.type)
     {
         fprintf(stderr, "Value Error: cannot perform addition on different types\n");
         *err = 1;
         return EMPTY;
     }
-    switch (a.type)
+    switch (left.type)
     {
     case VAL_NUM:
         res.type = VAL_NUM;
-        res.number = a.number + b.number;
+        res.number = left.number + right.number;
         return res;
     case VAL_MAT:
-        res = add_mat(a, b, err);
+        res = add_mat(left, right, err);
         if (*err)
             return EMPTY;
         return res;
+    case VAL_STR:
+        res.type = VAL_STR;
+        res.string = strdup(left.string);
+        strcat(res.string, right.string);
+        return res;
+        break;
     default:
         fprintf(stderr, "Value Error: value does not support addition\n");
         *err = 1;
@@ -326,30 +325,23 @@ Value eval_addition(ASTNode *node, Env *env, int *err)
     }
 }
 
-Value eval_subtraction(ASTNode *node, Env *env, int *err)
+Value eval_subtraction(Value left, Value right, int *err)
 {
-    Value a, b, res;
-    a = eval(node->binary.left, env, err);
-    if (*err)
-        return EMPTY;
-    b = eval(node->binary.right, env, err);
-    if (*err)
-        return EMPTY;
-
-    if (a.type != b.type)
+    Value res;
+    if (left.type != right.type)
     {
         fprintf(stderr, "Value Error: value does not support subtraction\n");
         *err = 1;
         return EMPTY;
     }
-    switch (a.type)
+    switch (left.type)
     {
     case VAL_NUM:
         res.type = VAL_NUM;
-        res.number = a.number - b.number;
+        res.number = left.number - right.number;
         return res;
     case VAL_MAT:
-        res = sub_mat(a, b, err);
+        res = sub_mat(left, right, err);
         if (*err)
             return EMPTY;
         return res;
@@ -360,41 +352,34 @@ Value eval_subtraction(ASTNode *node, Env *env, int *err)
     }
 }
 
-Value eval_multiplication(ASTNode *node, Env *env, int *err)
+Value eval_multiplication(Value left, Value right, int *err)
 {
-    Value a, b, res;
-    a = eval(node->binary.left, env, err);
-    if (*err)
-        return EMPTY;
-    b = eval(node->binary.right, env, err);
-    if (*err)
-        return EMPTY;
-
-    if ((a.type == VAL_MAT && b.type == VAL_NUM) || (b.type == VAL_MAT && a.type == VAL_NUM))
+    Value res;
+    if ((left.type == VAL_MAT && right.type == VAL_NUM) || (right.type == VAL_MAT && left.type == VAL_NUM))
     {
         // scalar * matrix multiplication
-        if (a.type == VAL_MAT)
+        if (left.type == VAL_MAT)
         {
-            return scalar_mat(a, b, err);
+            return scalar_mat(left, right, err);
         }
         else
         {
-            return scalar_mat(b, a, err);
+            return scalar_mat(right, left, err);
         }
     }
-    if (a.type != b.type) {
+    if (left.type != right.type) {
         fprintf(stderr, "Value Error: incompatible value types to perform multiplication\n");
         *err = 1;
         return EMPTY;
     }
-    switch (a.type)
+    switch (left.type)
     {
     case VAL_NUM:
         res.type = VAL_NUM;
-        res.number = a.number * b.number;
+        res.number = left.number * right.number;
         return res;
     case VAL_MAT:
-        res = mul_mat(a, b, err);
+        res = mul_mat(left, right, err);
         if (*err)
             return EMPTY;
         return res;
@@ -405,33 +390,26 @@ Value eval_multiplication(ASTNode *node, Env *env, int *err)
     }
 }
 
-Value eval_division(ASTNode *node, Env *env, int *err)
+Value eval_division(Value left, Value right, int *err)
 {
-    Value a, b, res;
-    a = eval(node->binary.left, env, err);
-    if (*err)
-        return EMPTY;
-    b = eval(node->binary.right, env, err);
-    if (*err)
-        return EMPTY;
-
-    if (a.type == VAL_MAT)
+    Value res;
+    if (left.type == VAL_MAT)
     {
         fprintf(stderr, "Value Error: cannot perform division on matrices\n");
         *err = 1;
         return EMPTY;
     }
-    if (a.type != b.type) {
+    if (left.type != right.type) {
         fprintf(stderr, "Value Error: incompatible value types to perform division\n");
         *err = 1;
         return EMPTY;
     }
-    switch (a.type) {
+    switch (left.type) {
         case VAL_NUM:
-            if (b.number != 0)
+            if (right.number != 0)
             {
                 res.type = VAL_NUM;
-                res.number = a.number / b.number;
+                res.number = left.number / right.number;
                 return res;
             }
             else
@@ -447,24 +425,17 @@ Value eval_division(ASTNode *node, Env *env, int *err)
     }
 }
 
-Value eval_exponentiation(ASTNode *node, Env *env, int *err)
+Value eval_exponentiation(Value left, Value right, int *err)
 {
-    Value a, b, res;
-    a = eval(node->binary.left, env, err);
-    if (*err)
-        return EMPTY;
-    b = eval(node->binary.right, env, err);
-    if (*err)
-        return EMPTY;
-
-    switch (a.type)
+    Value res;
+    switch (left.type)
     {
     case VAL_NUM:
         res.type = VAL_NUM;
-        res.number = pow(a.number, b.number);
+        res.number = pow(left.number, right.number);
         return res;
     case VAL_MAT:
-        res = pow_mat(a, b, err);
+        res = pow_mat(left, right, err);
         if (*err)
             return EMPTY;
         return res;
@@ -477,21 +448,26 @@ Value eval_exponentiation(ASTNode *node, Env *env, int *err)
 
 Value eval_binop(ASTNode *node, Env *env, int *err)
 {
+    Value left = eval(node->binary.left, env, err);
+    Value right = eval(node->binary.right, env, err);
+    if (*err) return EMPTY;
     switch (node->binary.op)
     {
     case TOK_PLUS:
-        return eval_addition(node, env, err);
+        return eval_addition(left, right, err);
     case TOK_MINUS:
-        return eval_subtraction(node, env, err);
+        return eval_subtraction(left, right, err);
     case TOK_MUL:
-        return eval_multiplication(node, env, err);
+        return eval_multiplication(left, right, err);
     case TOK_DIV:
-        return eval_division(node, env, err);
+        return eval_division(left, right, err);
     case TOK_POW:
-        return eval_exponentiation(node, env, err);
+        return eval_exponentiation(left, right, err);
     default:
         return EMPTY;
     }
+    free_value(left);
+    free_value(right);
 }
 
 Value eval_func(ASTNode *node, Env *env, int *err)
