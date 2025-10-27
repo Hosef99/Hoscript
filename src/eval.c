@@ -457,7 +457,7 @@ Value eval_exponentiation(ASTNode *node, Env *env, int *err)
     }
 }
 
-Value eval_binop(ASTNode *node, Env *env, int *err)
+Value eval_lesser(ASTNode *node, Env *env, int *err)
 {
     Value left = eval(node->binary.left, env, err);
     if (*err) return EMPTY;
@@ -465,6 +465,96 @@ Value eval_binop(ASTNode *node, Env *env, int *err)
     if (*err) return EMPTY;
 
     Value res;
+    Value result;
+    result.type = VAL_BOOL;
+    result.boolean = 0;
+
+    res.type = VAL_NUM;
+    res.number = left.number < right.number;
+    if(!res.number)
+    {
+        result.boolean = 0;
+        return result;
+    }
+
+    result.boolean = 1;
+    return result;
+}
+
+Value eval_greater(ASTNode *node, Env *env, int *err)
+{
+    Value left = eval(node->binary.left, env, err);
+    if (*err) return EMPTY;
+    Value right = eval(node->binary.right, env, err);
+    if (*err) return EMPTY;
+
+    Value res;
+    Value result;
+    result.type = VAL_BOOL;
+    result.boolean = 0;
+
+    res.type = VAL_NUM;
+    res.number = left.number > right.number;
+    if(!res.number)
+    {
+        result.boolean = 0;
+        return result;
+    }
+
+    result.boolean = 1;
+    return result;
+}
+
+Value eval_lesser_equal(ASTNode *node, Env *env, int *err)
+{
+    Value left = eval(node->binary.left, env, err);
+    if (*err) return EMPTY;
+    Value right = eval(node->binary.right, env, err);
+    if (*err) return EMPTY;
+
+    Value res;
+    Value result;
+    result.type = VAL_BOOL;
+    result.boolean = 0;
+
+    res.type = VAL_NUM;
+    res.number = left.number <= right.number;
+    if(!res.number)
+    {
+        result.boolean = 0;
+        return result;
+    }
+
+    result.boolean = 1;
+    return result;
+}
+
+Value eval_greater_equal(ASTNode *node, Env *env, int *err)
+{
+    Value left = eval(node->binary.left, env, err);
+    if (*err) return EMPTY;
+    Value right = eval(node->binary.right, env, err);
+    if (*err) return EMPTY;
+
+    Value res;
+    Value result;
+    result.type = VAL_BOOL;
+    result.boolean = 0;
+
+    res.type = VAL_NUM;
+    res.number = left.number >= right.number;
+    if(!res.number)
+    {
+        result.boolean = 0;
+        return result;
+    }
+
+    result.boolean = 1;
+    return result;
+}
+
+Value eval_binop(ASTNode *node, Env *env, int *err)
+{
     switch (node->binary.op)
     {
     case TOK_PLUS:
@@ -478,24 +568,15 @@ Value eval_binop(ASTNode *node, Env *env, int *err)
     case TOK_POW:
         return eval_exponentiation(node, env, err);
     case TOK_LESSER:
-        res.type = VAL_NUM;
-        res.number = left.number < right.number;
-        return res;
+        return eval_lesser(node, env, err);
     case TOK_GREATER:
-        res.type = VAL_NUM;
-        res.number = left.number > right.number;
-        return res;
+        return eval_greater(node, env, err);
     case TOK_LAND:
-        res.type = VAL_NUM;
-        res.number = left.number <= right.number;
-        return res;
+        return eval_lesser_equal(node, env, err);
     case TOK_GAND:
-        res.type = VAL_NUM;
-        res.number = left.number >= right.number;
-        return res;
+        return eval_greater_equal(node, env, err);
     case TOK_EQUAL:
         return eval_equal(node, env, err);
-        return res;
 
     default:
         return EMPTY;
