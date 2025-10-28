@@ -43,7 +43,7 @@ void print_value(Value value, const char* end, int* err)
             print_mat(value.mat.data, value.mat.rows, value.mat.cols, err);
             break;
         case VAL_BOOL:
-            printf(value.boolean ? "true\n" : "false\n");
+            printf(value.boolean ? "true%s" : "false%s", end);
             break;
         case VAL_STR:
             printf("%s%s", value.string, end);

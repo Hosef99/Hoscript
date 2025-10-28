@@ -2,7 +2,6 @@
 #define _POSIX_C_SOURCE 200809L
 #define IS_FILE 1
 #define NOT_FILE 0
-#include <ctype.h> // isdigit, isalpha, isspace
 #include <math.h>
 #include <stdio.h>  // printf, scanf
 #include <stdlib.h> // malloc, free, atof, exit
@@ -480,7 +479,7 @@ Value eval_division(Value left, Value right, int *err)
             }
             else
             {
-                fprintf(stderr, "Value Error: division by zero\n");
+                fprintf(stderr, "Runtime Error: division by zero\n");
                 *err = 1;
                 return EMPTY;
             }
@@ -520,7 +519,7 @@ Value eval_lesser(Value left, Value right, int *err)
 
     if (left.type != right.type) {
         *err = 1;
-        fprintf(stderr, "Type Error: incompatible value types for < operator");
+        fprintf(stderr, "Type Error: incompatible value types for < operator\n");
         return EMPTY;
     }
 
@@ -530,7 +529,7 @@ Value eval_lesser(Value left, Value right, int *err)
             return result;
         default:
             *err = 1;
-            fprintf(stderr, "Type Error: incompatible value types for < operator");
+            fprintf(stderr, "Type Error: incompatible value types for < operator\n");
             return EMPTY;
     }
 
@@ -544,7 +543,7 @@ Value eval_greater(Value left, Value right, int *err)
 
     if (left.type != right.type) {
         *err = 1;
-        fprintf(stderr, "Type Error: incompatible value types for > operator");
+        fprintf(stderr, "Type Error: incompatible value types for > operator\n");
         return EMPTY;
     }
 
@@ -554,7 +553,7 @@ Value eval_greater(Value left, Value right, int *err)
             return result;
         default:
             *err = 1;
-            fprintf(stderr, "Type Error: incompatible value types for > operator");
+            fprintf(stderr, "Type Error: incompatible value types for > operator\n");
             return EMPTY;
     }
 }
@@ -567,7 +566,7 @@ Value eval_lesser_equal(Value left, Value right, int *err)
 
     if (left.type != right.type) {
         *err = 1;
-        fprintf(stderr, "Type Error: incompatible value types for <= operator");
+        fprintf(stderr, "Type Error: incompatible value types for <= operator\n");
         return EMPTY;
     }
 
@@ -577,7 +576,7 @@ Value eval_lesser_equal(Value left, Value right, int *err)
             return result;
         default:
             *err = 1;
-            fprintf(stderr, "Type Error: incompatible value types for <= operator");
+            fprintf(stderr, "Type Error: incompatible value types for <= operator\n");
             return EMPTY;
     }
 }
@@ -590,7 +589,7 @@ Value eval_greater_equal(Value left, Value right, int *err)
 
     if (left.type != right.type) {
         *err = 1;
-        fprintf(stderr, "Type Error: incompatible value types for >= operator");
+        fprintf(stderr, "Type Error: incompatible value types for >= operator\n");
         return EMPTY;
     }
 
@@ -600,7 +599,7 @@ Value eval_greater_equal(Value left, Value right, int *err)
             return result;
         default:
             *err = 1;
-            fprintf(stderr, "Type Error: incompatible value types for >= operator");
+            fprintf(stderr, "Type Error: incompatible value types for >= operator\n");
             return EMPTY;
     }
 }
@@ -612,7 +611,7 @@ Value eval_equal(Value left, Value right, int *err)
     result.boolean = 0;
 
     if (left.type != right.type) {
-        fprintf(stderr, "Type Error: incompatible value types for == operator");
+        fprintf(stderr, "Type Error: incompatible value types for == operator\n");
         *err = 1;
         return EMPTY;
     }
@@ -645,7 +644,7 @@ Value eval_equal(Value left, Value right, int *err)
             return result;
 
         default:
-            fprintf(stderr, "Type Error: incompatible value types for == operator");
+            fprintf(stderr, "Type Error: incompatible value types for == operator\n");
             *err = 1;
             return EMPTY;
     }
@@ -1189,8 +1188,6 @@ void interpret(const char *input, Env *env, int is_file, int *err)
         free_tokens(tokens, tok_count);
         return;
     }
-
-    print_ast(root, 0);
 
     if (parser.current_token.type != TOK_EOF)
     {

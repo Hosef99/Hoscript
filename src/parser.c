@@ -288,7 +288,7 @@ ASTNode* parse_base(Parser* parser, int* err)
     if (match(parser, TOK_LPAREN)) 
     {
         advance(parser);
-        ASTNode* node = parse_expr(parser, err);
+        ASTNode* node = parse_assign(parser, err);
         if (!match(parser, TOK_RPAREN)) 
         {
             fprintf(stderr, "Syntax error: expected ')'\n");
@@ -352,7 +352,7 @@ ASTNode* parse_func(Parser* parser, int* err)
             node->func.args = realloc(node->func.args, cap * sizeof(ASTNode*));
         }
 
-        node->func.args[node->func.arg_size++] = parse_expr(parser, err);
+        node->func.args[node->func.arg_size++] = parse_assign(parser, err);
         if (*err) return node;
 
         if (parser->current_token.type == TOK_COMMA)
