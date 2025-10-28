@@ -527,6 +527,9 @@ Value eval_lesser(Value left, Value right, int *err)
         case VAL_NUM:
             result.boolean = left.number < right.number;
             return result;
+        case VAL_STR:
+            result.boolean = (strcmp(left.string, right.string) < 0);
+            return result;
         default:
             *err = 1;
             fprintf(stderr, "Type Error: incompatible value types for < operator\n");
@@ -551,6 +554,9 @@ Value eval_greater(Value left, Value right, int *err)
         case VAL_NUM:
             result.boolean = left.number > right.number;
             return result;
+        case VAL_STR:
+            result.boolean = (strcmp(left.string, right.string) > 0);
+            return result;
         default:
             *err = 1;
             fprintf(stderr, "Type Error: incompatible value types for > operator\n");
@@ -574,6 +580,9 @@ Value eval_lesser_equal(Value left, Value right, int *err)
         case VAL_NUM:
             result.boolean = left.number <= right.number;
             return result;
+        case VAL_STR:
+            result.boolean = (strcmp(left.string, right.string) <= 0);
+            return result;
         default:
             *err = 1;
             fprintf(stderr, "Type Error: incompatible value types for <= operator\n");
@@ -596,6 +605,9 @@ Value eval_greater_equal(Value left, Value right, int *err)
     switch (left.type) {
         case VAL_NUM:
             result.boolean = left.number >= right.number;
+            return result;
+        case VAL_STR:
+            result.boolean = (strcmp(left.string, right.string) >= 0);
             return result;
         default:
             *err = 1;
@@ -621,6 +633,9 @@ Value eval_equal(Value left, Value right, int *err)
             result.boolean = (left.number == right.number) ;
             return result;
             break;
+        case VAL_STR:
+            result.boolean = (strcmp(left.string, right.string) == 0);
+            return result;
         case VAL_MAT:
             if (left.mat.rows != right.mat.rows || left.mat.cols != right.mat.cols) 
             {
