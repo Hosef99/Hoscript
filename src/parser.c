@@ -148,7 +148,7 @@ ASTNode* parse_assign(Parser* parser, int* err)
 ASTNode* parse_comp(Parser* parser, int* err)
 {
     ASTNode* left = parse_expr(parser, err); // parse the first term
-    while (match(parser, TOK_LESSER) || match(parser, TOK_GREATER) || match(parser, TOK_LAND) || match(parser, TOK_GAND) || match(parser, TOK_EQUAL)) 
+    while (match(parser, TOK_LESSER) || match(parser, TOK_GREATER) || match(parser, TOK_LAND) || match(parser, TOK_GAND) || match(parser, TOK_EQUAL) || match(parser, TOK_NEQUAL)) 
     {   
         TokenType op = parser->current_token.type; // assign operator
         advance(parser); // next token

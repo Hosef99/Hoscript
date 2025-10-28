@@ -650,6 +650,52 @@ Value eval_equal(Value left, Value right, int *err)
     }
 }
 
+Value eval_nequal(Value left, Value right, int *err)
+{
+    Value result;
+    result.type = VAL_BOOL;
+    result.boolean = 0;
+
+    if (left.type != right.type) {
+        fprintf(stderr, "Type Error: incompatible value types for != operator\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    switch (left.type) {
+        case VAL_NUM:
+            result.boolean = (left.number != right.number) ;
+            return result;
+            break;
+        case VAL_MAT:
+            if (left.mat.rows != right.mat.rows || left.mat.cols != right.mat.cols) 
+            {
+                result.boolean = 1;
+                return result;
+            }
+
+            for (int i = 0; i < left.mat.rows; i++) 
+            {
+                for (int j = 0; j < left.mat.cols; j++) 
+                {
+                    if ((left.mat.data[i][j] != right.mat.data[i][j])) 
+                    {
+                        result.boolean = 1;
+                        return result;
+                    }
+                }
+            }
+
+            result.boolean = 0;
+            return result;
+
+        default:
+            fprintf(stderr, "Type Error: incompatible value types for == operator\n");
+            *err = 1;
+            return EMPTY;
+    }
+}
+
 Value eval_binop(ASTNode *node, Env *env, int *err)
 {
     Value left = eval(node->binary.left, env, err);
@@ -677,6 +723,8 @@ Value eval_binop(ASTNode *node, Env *env, int *err)
         return eval_greater_equal(left, right, err);
     case TOK_EQUAL:
         return eval_equal(left, right, err);
+    case TOK_NEQUAL:
+        return eval_nequal(left, right, err);
 
     default:
         return EMPTY;

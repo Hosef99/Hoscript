@@ -36,6 +36,7 @@ char* type_to_string(TokenType type)
     case TOK_LAND:      return "LesserEqual";
     case TOK_GAND:      return "GreaterEqual";
     case TOK_EQUAL:     return "Equal";
+    case TOK_NEQUAL:    return "NotEqual";
     case TOK_NEWLINE:   return "Newline";
     case TOK_EOF:       return "EOF";
     default:            return "Unknown";
@@ -121,6 +122,14 @@ Token lex(const char* input, int* pos, int* err)
             {
                 (*pos)++;
                 return (Token){TOK_ASSIGN, 0, NULL}; // =
+            }
+        }
+        if (input[*pos] == '!')
+        {
+            if (input[*pos + 1] == '=')
+            {
+                *pos += 2;
+                return (Token){TOK_NEQUAL, 0, NULL}; // !=
             }
         }
         if (input[*pos] == '=') { (*pos)++; return (Token){TOK_ASSIGN, 0, NULL}; }
