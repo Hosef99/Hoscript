@@ -376,9 +376,16 @@ ASTNode* parse_list(Parser* parser, int* err)
     node->type = AST_LIST;
     node->list.max_size = 4;
     node->list.elements = malloc(node->list.max_size * sizeof(ASTNode*));
-    node->list.size = 1;
+    node->list.size = 0;
+
+    if (match(parser, TOK_RBRACK)) {
+        advance(parser);
+        return node;
+    }
 
     node->list.elements[0] = parse_assign(parser, err);
+    node->list.size = 1;
+
 
     while (parser->current_token.type == TOK_COMMA && !*err) 
     {

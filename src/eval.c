@@ -1269,13 +1269,17 @@ void interpret(const char *input, Env *env, int is_file, int *err)
             return;
         }
 
-        if (!*err && tok_count != 1)
+        if (*err == 0 && tok_count != 1)
         {
             if (root->program.nodes[0]->type != AST_ASSIGN)
             {
                 if (!is_file)
                 {
-                    print_value(result, "\n", err);
+                    char* temp_print = string_value(result, err);
+                    if (temp_print != NULL) {
+                        printf("%s\n", temp_print);
+                        free(temp_print);
+                    }
                 }
                 free_value(result);
             }

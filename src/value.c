@@ -36,6 +36,7 @@ void append_to_buffer(char **buffer, int *pos, int *size, const char *text) {
 
 void print_value(Value value, const char* end, int* err)
 {
+    char* temp;
     switch (value.type) {
         case VAL_NUM:
             printf("%.15g%s", value.number, end);
@@ -50,14 +51,9 @@ void print_value(Value value, const char* end, int* err)
             printf("%s%s", value.string, end);
             break;
         case VAL_LIST:
-            printf("[");
-            for (int i = 0; i < value.list.size; i++) {
-                print_value(value.list.elements[i], "", err);
-                if (i != value.list.size - 1) {
-                    printf(",");
-                }
-            }
-            printf("]%s", end);
+            temp = string_value(value, err);
+            printf("%s%s", temp, end);
+            free(temp);
             break;
         case VAL_EMP:
             break;
