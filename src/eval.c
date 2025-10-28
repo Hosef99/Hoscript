@@ -2,7 +2,6 @@
 #define _POSIX_C_SOURCE 200809L
 #define IS_FILE 1
 #define NOT_FILE 0
-#include <ctype.h> // isdigit, isalpha, isspace
 #include <math.h>
 #include <stdio.h>  // printf, scanf
 #include <stdlib.h> // malloc, free, atof, exit
@@ -480,7 +479,7 @@ Value eval_division(Value left, Value right, int *err)
             }
             else
             {
-                fprintf(stderr, "Value Error: division by zero\n");
+                fprintf(stderr, "Runtime Error: division by zero\n");
                 *err = 1;
                 return EMPTY;
             }
@@ -512,6 +511,145 @@ Value eval_exponentiation(Value left, Value right, int *err)
     }
 }
 
+Value eval_lesser(Value left, Value right, int *err)
+{
+    Value result;
+    result.type = VAL_BOOL;
+    result.boolean = 0;
+
+    if (left.type != right.type) {
+        *err = 1;
+        fprintf(stderr, "Type Error: incompatible value types for < operator\n");
+        return EMPTY;
+    }
+
+    switch (left.type) {
+        case VAL_NUM:
+            result.boolean = left.number < right.number;
+            return result;
+        default:
+            *err = 1;
+            fprintf(stderr, "Type Error: incompatible value types for < operator\n");
+            return EMPTY;
+    }
+
+}
+
+Value eval_greater(Value left, Value right, int *err)
+{
+    Value result;
+    result.type = VAL_BOOL;
+    result.boolean = 0;
+
+    if (left.type != right.type) {
+        *err = 1;
+        fprintf(stderr, "Type Error: incompatible value types for > operator\n");
+        return EMPTY;
+    }
+
+    switch (left.type) {
+        case VAL_NUM:
+            result.boolean = left.number > right.number;
+            return result;
+        default:
+            *err = 1;
+            fprintf(stderr, "Type Error: incompatible value types for > operator\n");
+            return EMPTY;
+    }
+}
+
+Value eval_lesser_equal(Value left, Value right, int *err)
+{
+    Value result;
+    result.type = VAL_BOOL;
+    result.boolean = 0;
+
+    if (left.type != right.type) {
+        *err = 1;
+        fprintf(stderr, "Type Error: incompatible value types for <= operator\n");
+        return EMPTY;
+    }
+
+    switch (left.type) {
+        case VAL_NUM:
+            result.boolean = left.number <= right.number;
+            return result;
+        default:
+            *err = 1;
+            fprintf(stderr, "Type Error: incompatible value types for <= operator\n");
+            return EMPTY;
+    }
+}
+
+Value eval_greater_equal(Value left, Value right, int *err)
+{
+    Value result;
+    result.type = VAL_BOOL;
+    result.boolean = 0;
+
+    if (left.type != right.type) {
+        *err = 1;
+        fprintf(stderr, "Type Error: incompatible value types for >= operator\n");
+        return EMPTY;
+    }
+
+    switch (left.type) {
+        case VAL_NUM:
+            result.boolean = left.number >= right.number;
+            return result;
+        default:
+            *err = 1;
+            fprintf(stderr, "Type Error: incompatible value types for >= operator\n");
+            return EMPTY;
+    }
+}
+
+Value eval_equal(Value left, Value right, int *err)
+{
+    Value result;
+    result.type = VAL_BOOL;
+    result.boolean = 0;
+
+    if (left.type != right.type) {
+        fprintf(stderr, "Type Error: incompatible value types for == operator\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    switch (left.type) {
+        case VAL_NUM:
+            result.boolean = (left.number == right.number) ;
+            return result;
+            break;
+        case VAL_MAT:
+            if (left.mat.rows != right.mat.rows || left.mat.cols != right.mat.cols) 
+            {
+                result.boolean = 0;
+                return result;
+            }
+
+            for (int i = 0; i < left.mat.rows; i++) 
+            {
+                for (int j = 0; j < left.mat.cols; j++) 
+                {
+                    if ((left.mat.data[i][j] != right.mat.data[i][j])) 
+                    {
+                        result.boolean = 0;
+                        return result;
+                    }
+                }
+            }
+
+            result.boolean = 1;
+            return result;
+
+        default:
+            fprintf(stderr, "Type Error: incompatible value types for == operator\n");
+            *err = 1;
+            return EMPTY;
+    }
+}
+
 Value eval_binop(ASTNode *node, Env *env, int *err)
 {
     Value left = eval(node->binary.left, env, err);
@@ -529,6 +667,17 @@ Value eval_binop(ASTNode *node, Env *env, int *err)
         return eval_division(left, right, err);
     case TOK_POW:
         return eval_exponentiation(left, right, err);
+    case TOK_LESSER:
+        return eval_lesser(left, right, err);
+    case TOK_GREATER:
+        return eval_greater(left, right, err);
+    case TOK_LAND:
+        return eval_lesser_equal(left, right, err);
+    case TOK_GAND:
+        return eval_greater_equal(left, right, err);
+    case TOK_EQUAL:
+        return eval_equal(left, right, err);
+
     default:
         return EMPTY;
     }

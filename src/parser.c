@@ -7,6 +7,8 @@
 #include "parser.h"
 #include "value.h"
 
+ASTNode* parse_assign(Parser* parser, int* err); 
+ASTNode* parse_comp(Parser* parser, int* err); 
 ASTNode* parse_expr(Parser* parser, int* err); 
 ASTNode* parse_term(Parser* parser, int* err); 
 ASTNode* parse_factor(Parser* parser, int* err); 
@@ -86,10 +88,10 @@ ASTNode* parse(Parser* parser, int* err)
     program->program.nodes = malloc(program_size*sizeof(ASTNode*));
 
     parser->current_token = peek(parser, 0); // ni
-    ASTNode* expr = parse_expr(parser, err); // take over parse_assign()
+    ASTNode* assign = parse_assign(parser, err); // take over parse_assign()
     if (*err) return NULL;
 
-    program->program.nodes[program->program.count++] = expr;
+    program->program.nodes[program->program.count++] = assign;
 
     while (match(parser, TOK_NEWLINE)) {
         advance(parser);
@@ -98,14 +100,14 @@ ASTNode* parse(Parser* parser, int* err)
             program_size *= 2;
             program->program.nodes = realloc(program->program.nodes, program_size * sizeof(ASTNode*));
         }
-        expr = parse_expr(parser, err);
-        if (expr->type == AST_EOF)
+        assign = parse_assign(parser, err);
+        if (assign->type == AST_EOF)
         {
-            free_ast(expr);
+            free_ast(assign);
             continue;
         }
         if (*err) return NULL;
-        program->program.nodes[program->program.count++] = expr;
+        program->program.nodes[program->program.count++] = assign;
     }
 
     if (!match(parser, TOK_EOF)) 
@@ -115,9 +117,49 @@ ASTNode* parse(Parser* parser, int* err)
     }
     return program;
 }
-
 // Top-level
-ASTNode* parse_expr(Parser* parser, int* err) // Handle + , - , = which take over parse_assign()
+ASTNode* parse_assign(Parser* parser, int* err) 
+{
+    ASTNode* left = parse_comp(parser, err);
+    if (*err) return NULL;
+
+    if (match(parser, TOK_ASSIGN)) 
+    {   
+        if (left->type != AST_IDENT && left->type != AST_INDEX) 
+        {
+            fprintf(stderr, "Syntax Error: invalid assignment target\n");
+            *err = 1;
+            return NULL;
+        }
+        advance(parser);
+        ASTNode* rhs = parse_assign(parser, err); 
+        if (*err) return NULL;
+
+        ASTNode* assign = calloc(1, sizeof(ASTNode));
+        assign->type = AST_ASSIGN;
+        assign->assign.left = left;
+        assign->assign.expr = rhs;
+        return assign;
+    }
+
+    return left;
+}
+
+ASTNode* parse_comp(Parser* parser, int* err)
+{
+    ASTNode* left = parse_expr(parser, err); // parse the first term
+    while (match(parser, TOK_LESSER) || match(parser, TOK_GREATER) || match(parser, TOK_LAND) || match(parser, TOK_GAND) || match(parser, TOK_EQUAL)) 
+    {   
+        TokenType op = parser->current_token.type; // assign operator
+        advance(parser); // next token
+        ASTNode* right = parse_expr(parser, err);
+        left = make_op_node(op, left, right);        
+    }
+
+    return left;
+}
+
+ASTNode* parse_expr(Parser* parser, int* err) // Handle +, -
 {
     ASTNode* left = parse_term(parser, err); 
     if (*err) return NULL;
@@ -129,25 +171,6 @@ ASTNode* parse_expr(Parser* parser, int* err) // Handle + , - , = which take ove
         ASTNode* right = parse_term(parser, err); // parse the next term
         if (*err) return NULL;
         left = make_op_node(op, left, right);
-    }
-
-    if (match(parser, TOK_ASSIGN)) 
-    {
-        if (left->type != AST_IDENT && left->type != AST_INDEX) 
-        {
-            fprintf(stderr, "Syntax Error: invalid assignment target\n");
-            *err = 1;
-            return NULL;
-        }
-        advance(parser);
-        ASTNode* rhs = parse_expr(parser, err);
-        if (*err) return NULL;
-
-        ASTNode* assign = calloc(1, sizeof(ASTNode));
-        assign->type = AST_ASSIGN;
-        assign->assign.left = left;
-        assign->assign.expr = rhs;
-        return assign;
     }
 
     return left;
@@ -265,7 +288,7 @@ ASTNode* parse_base(Parser* parser, int* err)
     if (match(parser, TOK_LPAREN)) 
     {
         advance(parser);
-        ASTNode* node = parse_expr(parser, err);
+        ASTNode* node = parse_assign(parser, err);
         if (!match(parser, TOK_RPAREN)) 
         {
             fprintf(stderr, "Syntax error: expected ')'\n");
@@ -329,7 +352,7 @@ ASTNode* parse_func(Parser* parser, int* err)
             node->func.args = realloc(node->func.args, cap * sizeof(ASTNode*));
         }
 
-        node->func.args[node->func.arg_size++] = parse_expr(parser, err);
+        node->func.args[node->func.arg_size++] = parse_assign(parser, err);
         if (*err) return node;
 
         if (parser->current_token.type == TOK_COMMA)
