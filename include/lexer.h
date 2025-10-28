@@ -23,6 +23,7 @@ typedef enum {
     TOK_LAND,       // <=
     TOK_GAND,       // >=
     TOK_EQUAL,      // ==
+    TOK_NEQUAL,     // !=
     TOK_NEWLINE,    // \n
     TOK_EOF         // end of input
 } TokenType;
