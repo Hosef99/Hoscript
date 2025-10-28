@@ -16,8 +16,7 @@ ASTNode* parse_mul(Parser* parser, int* err);
 ASTNode* parse_power(Parser* parser, int* err); 
 ASTNode* parse_base(Parser* parser, int* err); 
 ASTNode* parse_func(Parser* parser, int* err); 
-ASTNode* parse_mat(Parser* parser, int* err); 
-ASTNode* parse_row(Parser* parser, int* err);
+ASTNode* parse_list(Parser* parser, int* err); 
 ASTNode* parse_postfix(Parser* parser, int* err); 
 ASTNode* parse_slice(Parser* parser, int* err);
 int implicit_mul(Parser* parser);
@@ -300,7 +299,7 @@ ASTNode* parse_base(Parser* parser, int* err)
     }
 
     if (match(parser, TOK_LBRACK))
-        return parse_mat(parser, err);
+        return parse_list(parser, err);
 
     if (match(parser, TOK_STRING))
     {
@@ -369,29 +368,29 @@ ASTNode* parse_func(Parser* parser, int* err)
     return node;
 }
 
-ASTNode* parse_mat(Parser* parser, int* err)
+ASTNode* parse_list(Parser* parser, int* err)
 {
     advance(parser); // consume '['
 
     ASTNode* node = malloc(sizeof(ASTNode));
-    node->type = AST_MAT;
-    node->mat.row_cap = 4;
-    node->mat.matrix = malloc(node->mat.row_cap * sizeof(ASTNode*));
-    node->mat.rows = 1;
+    node->type = AST_LIST;
+    node->list.max_size = 4;
+    node->list.elements = malloc(node->list.max_size * sizeof(ASTNode*));
+    node->list.size = 1;
 
-    node->mat.matrix[0] = parse_row(parser, err);
+    node->list.elements[0] = parse_assign(parser, err);
 
-    while (parser->current_token.type == TOK_SEMI && !*err) 
+    while (parser->current_token.type == TOK_COMMA && !*err) 
     {
-        advance(parser); // consume ';'
+        advance(parser); // consume ','
 
-        if (node->mat.rows == node->mat.row_cap) 
+        if (node->list.size == node->list.max_size) 
         {
-            node->mat.row_cap *= 2;
-            node->mat.matrix = realloc(node->mat.matrix, node->mat.row_cap * sizeof(ASTNode*));
+            node->list.max_size *= 2;
+            node->list.elements = realloc(node->list.elements, node->list.max_size * sizeof(ASTNode*));
         }
 
-        node->mat.matrix[node->mat.rows++] = parse_row(parser, err);
+        node->list.elements[node->list.size++] = parse_assign(parser, err);
     }
 
     if (parser->current_token.type != TOK_RBRACK) 
@@ -402,32 +401,6 @@ ASTNode* parse_mat(Parser* parser, int* err)
     }
 
     advance(parser); // consume ']'
-    return node;
-}
-
-ASTNode* parse_row(Parser* parser, int* err)
-{
-    ASTNode* node = malloc(sizeof(ASTNode));
-    node->type = AST_ROW;
-    node->row.col_cap = 4;
-    node->row.elements = malloc(node->row.col_cap * sizeof(ASTNode*));
-    node->row.cols = 1;
-
-    node->row.elements[0] = parse_expr(parser, err);
-
-    while (parser->current_token.type == TOK_COMMA && !*err) 
-    {
-        advance(parser); // consume ','
-
-        if (node->row.cols == node->row.col_cap) 
-        {
-            node->row.col_cap *= 2;
-            node->row.elements = realloc(node->row.elements, node->row.col_cap * sizeof(ASTNode*));
-        }
-
-        node->row.elements[node->row.cols++] = parse_expr(parser, err);
-    }
-
     return node;
 }
 
@@ -486,15 +459,10 @@ void print_ast(ASTNode* node, int indent)
             for (int i = 0; i < node->func.arg_size; i++)
                 print_ast(node->func.args[i], indent + 1);
             break;
-        case AST_ROW:
-            printf("ROW (%d cols)\n", node->row.cols);
-            for (int i = 0; i < node->row.cols; i++)
-                print_ast(node->row.elements[i], indent + 1);
-            break;
-        case AST_MAT:
-            printf("MAT (%d rows)\n", node->mat.rows);
-            for (int i = 0; i < node->mat.rows; i++)
-                print_ast(node->mat.matrix[i], indent + 1);
+        case AST_LIST:
+            printf("LIST (%d elements)\n", node->list.size);
+            for (int i = 0; i < node->list.size; i++)
+                print_ast(node->list.elements[i], indent + 1);
             break;
         case AST_PROGRAM:
             printf("PROGRAM:\n");
@@ -526,7 +494,6 @@ void free_ast(ASTNode* node)
         case AST_IDENT:
             free(node->name);
             break;
-
         case AST_BINOP:
         case AST_INDEX:
         case AST_SLICE:
@@ -536,17 +503,10 @@ void free_ast(ASTNode* node)
         case AST_UNOP:
             free_ast(node->unary.right);
             break;
-
-        case AST_ROW:
-            for (int i = 0; i < node->row.cols; i++)
-                free_ast(node->row.elements[i]);
-            free(node->row.elements);
-            break;
-
-        case AST_MAT:
-            for (int i = 0; i < node->mat.rows; i++)
-                free_ast(node->mat.matrix[i]);
-            free(node->mat.matrix);
+        case AST_LIST:
+            for (int i = 0; i < node->list.size; i++)
+                free_ast(node->list.elements[i]);
+            free(node->list.elements);
             break;
         case AST_PROGRAM:
             for (int i = 0; i < node->program.count; i++)

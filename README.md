@@ -21,10 +21,9 @@ factor -> (PLUS | MINUS)* power
 power -> postfix (POW factor)?
 postfix -> base (LBRACK slice RBRACK)*
 slice -> expr COLON expr
-base -> NUM | IDENT | func | LPAREN expr RPARAN | mat
+base -> NUM | IDENT | func | LPAREN expr RPARAN | list
 func -> IDENT LPARAN (expr (COMMA expr)*)? RPARAN
-mat -> LBRACK row (SEMICOLON row)* RBRACK
-row -> expr (COMMA expr)*
+list -> LBRACK assign (COMMA assign)* RBRACK
 IMPLICIT_MUL -> is triggered when the next factor can logically follow without an operator
 ```
 

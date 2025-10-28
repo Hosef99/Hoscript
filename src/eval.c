@@ -798,50 +798,37 @@ Value eval_unop(ASTNode *node, Env *env, int *err)
     return val;
 }
 
-Value eval_mat(ASTNode *node, Env *env, int *err)
+Value eval_list(ASTNode *node, Env *env, int *err)
 {
     // start evaluating matrices
     Value a, res;
-    ASTNode *row;
-    int rows = node->mat.rows;
-    int cols = node->mat.matrix[0]->row.cols;
-    res.type = VAL_MAT;
-    res.mat.rows = rows;
-    res.mat.cols = cols;
-    res.mat.data = alloc_mat(rows, cols);
-    if (!res.mat.data)
+    int size = node->list.size;
+    res.type = VAL_LIST;
+    res.list.size = size;
+    res.list.elements = malloc(size * sizeof(Value));
+    if (!res.list.elements)
     {
         fprintf(stderr, "Memory Error: allocation failed\n");
         *err = 1;
         return EMPTY;
     }
 
-    for (int i = 0; i < rows; i++)
+    for (int i = 0; i < size; i++)
     {
-        row = node->mat.matrix[i];
-        if (row->row.cols != cols)
-        {
-            fprintf(stderr, "Matrix Error: columns not consistent\n");
-            *err = 1;
+        a = eval(node->list.elements[i], env, err);
+
+        if (*err) {
+            for (int j = 0; j < i; j++) {
+                free_value(res.list.elements[j]);
+            }
+            free(res.list.elements);
             return EMPTY;
         }
 
-        for (int j = 0; j < cols; j++)
-        {
-            a = eval(row->row.elements[j], env, err);
-            if (a.type != VAL_NUM)
-            {
-                fprintf(stderr, "Value Error: contents of matrix must be a double\n");
-                *err = 1;
-                return EMPTY;
-            }
-
-            res.mat.data[i][j] = a.number;
-        }
+        res.list.elements[i] = a;
     }
     return res;
 }
-
 
 Value eval_slice(ASTNode* node, Env* env, int* err)
 {
@@ -1142,8 +1129,8 @@ Value eval(ASTNode* node, Env* env, int* err)
         return eval_func(node, env, err);
     case AST_UNOP:
         return eval_unop(node, env, err);
-    case AST_MAT:
-        return eval_mat(node, env, err);
+    case AST_LIST:
+        return eval_list(node, env, err);
     case AST_INDEX:
         return eval_index(node, env, err);
     case AST_PROGRAM:
