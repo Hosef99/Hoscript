@@ -682,6 +682,9 @@ Value eval_nequal(Value left, Value right, int *err)
             result.boolean = (left.number != right.number) ;
             return result;
             break;
+        case VAL_STR:
+            result.boolean = (strcmp(left.string, right.string) != 0);
+            return result;
         case VAL_MAT:
             if (left.mat.rows != right.mat.rows || left.mat.cols != right.mat.cols) 
             {
