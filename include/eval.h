@@ -16,14 +16,6 @@ typedef struct
     int var_count;
 } Env;
 
-typedef enum
-{
-    EVAL_OK = 0,
-    EVAL_SYNTAX_ERROR,
-    EVAL_NUMBER_ERROR,
-    EVAL_VARIABLE_ERROR
-} EvalStatus;
-
 typedef Value (*BuiltinFunc)(Value *args, int arg_size, int* err);
 
 typedef struct

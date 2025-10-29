@@ -6,11 +6,12 @@ typedef enum
     VAL_NUM,
     VAL_MAT,
     VAL_BOOL,
+    VAL_LIST,
     VAL_EMP,
     VAL_STR
 } ValueType;
 
-typedef struct
+typedef struct Value
 {
     ValueType type;
     char boolean;
@@ -24,6 +25,12 @@ typedef struct
             int cols;
             double** data;
         }mat;
+        struct
+        {
+            int size;
+            struct Value* elements;
+        } list;
+
     };
 } Value;
 

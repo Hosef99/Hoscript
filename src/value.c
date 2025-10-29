@@ -9,6 +9,7 @@ int is_iterator(Value value)
 {
     switch (value.type) {
         case VAL_MAT:
+        case VAL_LIST:
         case VAL_STR:
             return 1;
         default:
@@ -35,6 +36,7 @@ void append_to_buffer(char **buffer, int *pos, int *size, const char *text) {
 
 void print_value(Value value, const char* end, int* err)
 {
+    char* temp;
     switch (value.type) {
         case VAL_NUM:
             printf("%.15g%s", value.number, end);
@@ -47,6 +49,11 @@ void print_value(Value value, const char* end, int* err)
             break;
         case VAL_STR:
             printf("%s%s", value.string, end);
+            break;
+        case VAL_LIST:
+            temp = string_value(value, err);
+            printf("%s%s", temp, end);
+            free(temp);
             break;
         case VAL_EMP:
             break;
@@ -63,6 +70,12 @@ void free_value(Value value)
         free_mat(value.mat.data, value.mat.rows);
     else if (value.type == VAL_STR)
         free(value.string);
+    else if (value.type == VAL_LIST) {
+        for (int i = 0; i < value.list.size; i++) {
+            free_value(value.list.elements[i]);
+        }
+        free(value.list.elements);
+    }
 }
 
 Value copy_value(Value value, int* err)
@@ -81,6 +94,13 @@ Value copy_value(Value value, int* err)
             return new;
         case VAL_STR:
             new.string = strdup(value.string);
+            return new;
+        case VAL_LIST:
+            new.list.size = value.list.size;
+            new.list.elements = malloc(new.list.size * sizeof(Value));
+            for (int i = 0; i < value.list.size; i++) {
+                new.list.elements[i] = copy_value(value.list.elements[i], err);
+            }
             return new;
         default:
             fprintf(stderr, "Value Error: value is empty\n");
@@ -126,6 +146,21 @@ char* string_value(Value value, int* err)
             append_to_buffer(&buffer, &pos, &size, "\"");
             append_to_buffer(&buffer, &pos, &size, value.string);
             append_to_buffer(&buffer, &pos, &size, "\"");
+            return buffer;
+        case VAL_LIST:
+            append_to_buffer(&buffer, &pos, &size, "[");
+            for (int i = 0; i < value.list.size; i++) {
+                char* elem_str = string_value(value.list.elements[i], err);
+                if (*err) {
+                    free(buffer);
+                    return NULL;
+                }
+                append_to_buffer(&buffer, &pos, &size, elem_str);
+                free(elem_str);
+                if (i != value.list.size - 1)
+                    append_to_buffer(&buffer, &pos, &size, ",");
+            }
+            append_to_buffer(&buffer, &pos, &size, "]");
             return buffer;
         default:
             return NULL;
