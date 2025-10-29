@@ -846,37 +846,65 @@ Value eval_slice(ASTNode* node, Env* env, int* err)
     }
 
     if (!is_iterator(left)) {
+        free_value(left);
+        free_value(start_val);
+        free_value(end_val);
         fprintf(stderr, "Type Error: value is not an iterator.\n");
         *err = 1;
         return EMPTY;
     }
 
     int n = 0;
-    if (left.type == VAL_MAT)
-        n = (left.mat.rows == 1) ? left.mat.cols : left.mat.rows;
-    else if (left.type == VAL_STR)
-        n = strlen(left.string);
+    switch (left.type) {
+        case VAL_MAT:
+            n = (left.mat.rows == 1) ? left.mat.cols : left.mat.rows;
+            break;
+        case VAL_STR:
+            n = strlen(left.string);
+            break;
+        case VAL_LIST:
+            n = left.list.size;
+            break;
+        default:
+            break;
+    }
 
     int start = (int)start_val.number;
     int end = (int)end_val.number;
 
     if (start < 0 || start >= n || end < 0 || end > n) {
+        free_value(left);
+        free_value(start_val);
+        free_value(end_val);
         fprintf(stderr, "Index Error: index out of bounds\n");
         *err = 1;
         return EMPTY;
     }
 
-    if (end < start) {
-        if (left.type == VAL_STR) {
-            res.type = VAL_STR;
-            res.string = malloc(1);
-            res.string[0] = '\0';
-        } else if (left.type == VAL_MAT) {
-            res.type = VAL_MAT;
-            res.mat.rows = 0;
-            res.mat.cols = (left.mat.rows == 1) ? 0 : left.mat.cols;
-            res.mat.data = NULL;
+    if (end <= start) {
+        switch (left.type) {
+            case VAL_STR:
+                res.type = VAL_STR;
+                res.string = malloc(1);
+                res.string[0] = '\0';
+                break;
+            case VAL_MAT:
+                res.type = VAL_MAT;
+                res.mat.rows = 0;
+                res.mat.cols = (left.mat.rows == 1) ? 0 : left.mat.cols;
+                res.mat.data = NULL;
+                break;
+            case VAL_LIST:
+                res.type = VAL_LIST;
+                res.list.size = 0;
+                res.list.elements = NULL;
+                break;
+            default:
+                break;
         }
+        free_value(left);
+        free_value(start_val);
+        free_value(end_val);
         return res;
     }
 
@@ -888,6 +916,9 @@ Value eval_slice(ASTNode* node, Env* env, int* err)
         slice_string[size] = '\0';
         res.type = VAL_STR;
         res.string = slice_string;
+        free_value(left);
+        free_value(start_val);
+        free_value(end_val);
         return res;
     }
 
@@ -927,9 +958,28 @@ Value eval_slice(ASTNode* node, Env* env, int* err)
             }
         }
 
+        free_value(left);
+        free_value(start_val);
+        free_value(end_val);
         return res;
     }
 
+    else if (left.type == VAL_LIST) {
+        res.type = VAL_LIST;
+        res.list.size = size;
+        res.list.elements = malloc(size * sizeof(Value));
+        for (int i = 0; i < size; i++) {
+            res.list.elements[i] = copy_value(left.list.elements[i + start], err);
+        }
+        free_value(left);
+        free_value(start_val);
+        free_value(end_val);
+        return res;
+    }
+
+    free_value(left);
+    free_value(start_val);
+    free_value(end_val);
     fprintf(stderr, "Type Error: cannot slice this value.\n");
     *err = 1;
     return EMPTY;
@@ -1032,6 +1082,14 @@ Value eval_index(ASTNode* node, Env* env, int* err)
             v.string[0] = buffer;
             v.string[1] = '\0';
             return v;
+        case VAL_LIST:
+            if (left.list.size <= index.number || index.number < 0) {
+                fprintf(stderr, "Index Error: index out of bounds\n");
+                *err = 1;
+                return EMPTY;
+            }
+            v = copy_value(left.list.elements[(int)index.number], err);
+        return v;
         default:
             fprintf(stderr, "TypeError: invalid indexing target.\n");
             *err = 1;
