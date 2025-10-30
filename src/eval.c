@@ -341,6 +341,12 @@ Value mat(Value* args, int n, int* err) {
     int rows = list.list.size;
     int cols = 0;
     // consistency check for each row
+
+    if (rows == 0) {
+        fprintf(stderr, "Type Error: cannot have an empty matrix.\n");
+        *err = 1;
+        return EMPTY;
+    }
     for (int i = 0; i < rows; i++) {
         Value list_element = list.list.elements[i];
         if (list_element.type != VAL_LIST) {
@@ -355,12 +361,17 @@ Value mat(Value* args, int n, int* err) {
             return EMPTY;
         }
         for (int j = 0; j < cols; j++) {
-            if (list_element.type != VAL_NUM) {
+            if (list_element.list.elements[j].type != VAL_NUM) {
                 fprintf(stderr, "Type Error: elements in matrices must be numbers.\n");
                 *err = 1;
                 return EMPTY;
             }
         }
+    }
+    if (cols == 0) {
+        fprintf(stderr, "Type Error: cannot have an empty matrix.\n");
+        *err = 1;
+        return EMPTY;
     }
 
     res.type = VAL_MAT;
@@ -389,6 +400,7 @@ void eval_program(ASTNode* node, Env *env, int *err)
     for (int i = 0; i < node->program.count; i++)
     {
         eval(node->program.nodes[i], env, err);
+        if (*err) return;
     }
 }
 
