@@ -63,6 +63,7 @@ Value printvar(Value *args, int n, int *err);
 Value clear_screen(Value* args, int n, int* err);
 Value save_env(Value* args, int n, int* err);
 Value read_env(Value* args, int n, int* err);
+Value mat(Value* args, int n, int* err);
 
 // EVAL RELATED FUNCTIONS
 Value eval(ASTNode *root, Env *env, int *err);
@@ -147,6 +148,7 @@ BuiltinEntry builtins[] = {
     {"cls", clear_screen, 0, "cls(): clears the screen"},
     {"save_env", save_env, 1, "save_env(filename): saves the environment into filename"},
     {"read_env", read_env, 1, "read_env(filename): reads the environment from filename"},
+    {"mat", mat, 1, "mat(list(list)): converts a 2d list to a matrix"},
     {"sin", builtin_sin, 1, "sin(num): sine of angle"},
     {"cos", builtin_cos, 1, "cos(num): cosine of angle"},
     {"tan", builtin_tan, 1, "tan(num): tangent of angle"},
@@ -322,6 +324,60 @@ Value read_env(Value* args, int n, int* err) {
     interpret(buffer, current_env, IS_FILE, err);
     printf("Successfully readed %s into environment.\n", args[0].string);
     free(buffer);
+
+    return res;
+}
+
+Value mat(Value* args, int n, int* err) {
+    Value res;
+
+    if (n != 1 || args[0].type != VAL_LIST) {
+        fprintf(stderr, "mat expects 1 list argument\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    Value list = args[0];
+    int rows = list.list.size;
+    int cols = 0;
+    // consistency check for each row
+    for (int i = 0; i < rows; i++) {
+        Value list_element = list.list.elements[i];
+        if (list_element.type != VAL_LIST) {
+            fprintf(stderr, "Type Error: nested list must be used to convert a 2d list into a matrix.\n");
+            *err = 1;
+            return EMPTY;
+        }
+        if (cols == 0) cols = list_element.list.size;
+        else if (cols != list_element.list.size) {
+            fprintf(stderr, "Matrix Error: inconsistent columns\n");
+            *err = 1;
+            return EMPTY;
+        }
+        for (int j = 0; j < cols; j++) {
+            if (list_element.type != VAL_NUM) {
+                fprintf(stderr, "Type Error: elements in matrices must be numbers.\n");
+                *err = 1;
+                return EMPTY;
+            }
+        }
+    }
+
+    res.type = VAL_MAT;
+    res.mat.rows = rows;
+    res.mat.cols = cols;
+    res.mat.data = alloc_mat(rows, cols);
+    if (!res.mat.data) {
+        fprintf(stderr, "Memory Error: allocation failed\n");
+        *err = 1;
+        return EMPTY;
+    }
+    for (int i = 0; i < rows; i++) {
+         Value list_element = list.list.elements[i];
+        for (int j = 0; j < cols; j++) {
+            res.mat.data[i][j] = list_element.list.elements[j].number;
+        }
+    }
 
     return res;
 }
