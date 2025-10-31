@@ -11,19 +11,26 @@ This project is a calculator that is capable of doing basic operations.
 
 ## Grammar
 ```
-parse -> assign (NEWLINE assign)* EOF
-assign -> comp (ASSIGN assign)*
-comp -> expr ((GREATER | LESSER | GEQ | LEQ | EQ) expr)*
-expr -> term ((PLUS | MINUS) term)*| (IDENT | postfix) ASSIGN expr
-term -> mul ((MUL | DIV) mul)*
-mul -> factor (IMPLICIT_MUL factor)*
-factor -> (PLUS | MINUS)* power 
-power -> postfix (POW factor)?
+parse   -> stmt (NEWLINE stmt)* EOF
+
+stmt    -> assign | if_stmt | block
+
+block   -> LBRACE (stmt (NEWLINE stmt)*)? RBRACE
+
+if_stmt -> IF LPAREN assign RPAREN stmt (ELSE stmt)?
+
+assign  -> comp (ASSIGN assign)*
+comp    -> expr ((GREATER | LESSER | GEQ | LEQ | EQ) expr)*
+expr    -> term ((PLUS | MINUS) term)* | (IDENT | postfix) ASSIGN expr
+term    -> mul ((MUL | DIV) mul)*
+mul     -> factor (IMPLICIT_MUL factor)*
+factor  -> (PLUS | MINUS)* power 
+power   -> postfix (POW factor)?
 postfix -> base (LBRACK slice RBRACK)*
-slice -> expr COLON expr
-base -> NUM | IDENT | func | LPAREN expr RPARAN | list
-func -> IDENT LPARAN (expr (COMMA expr)*)? RPARAN
-list -> LBRACK assign (COMMA assign)* RBRACK
+slice   -> expr COLON expr
+base    -> NUM | IDENT | func | LPAREN expr RPAREN | list
+func    -> IDENT LPAREN (expr (COMMA expr)*)? RPAREN
+list    -> LBRACK assign (COMMA assign)* RBRACK
 IMPLICIT_MUL -> is triggered when the next factor can logically follow without an operator
 ```
 

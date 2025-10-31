@@ -404,6 +404,16 @@ void eval_program(ASTNode* node, Env *env, int *err)
     }
 }
 
+void eval_if(ASTNode *node, Env *env, int *err)
+{
+    Value cond = eval(node->if_node.cond, env, err);
+    if (bool_value(cond)) {
+        eval(node->if_node.if_stmt, env, err);
+    } else {
+        eval(node->if_node.else_stmt, env, err);
+    }
+}
+
 Value eval_assign(ASTNode *node, Env *env, int *err)
 {
     Value rhs = eval(node->assign.expr, env, err);
@@ -1259,10 +1269,14 @@ Value eval(ASTNode* node, Env* env, int* err)
         return eval_list(node, env, err);
     case AST_INDEX:
         return eval_index(node, env, err);
+    case AST_IF:
+        eval_if(node, env, err);
+        return EMPTY;
     case AST_PROGRAM:
-        if (node->program.count == 0) 
-            return EMPTY;
-        return eval(node->program.nodes[0], env, err);
+        for (int i = 0; i < node->program.count; i++) {
+            eval(node->program.nodes[i], env, err);
+        }
+        return EMPTY;
 
     default:
         return EMPTY;
@@ -1357,8 +1371,7 @@ void interpret(const char *input, Env *env, int is_file, int *err)
     }
 
     Token *tokens = generate_tokens(input, &tok_count, err);
-    if (*err)
-        return;
+    if (*err) return;
 
     Parser parser = {tokens, tok_count, 0, tokens[0]};
     ASTNode *root = parse(&parser, err);

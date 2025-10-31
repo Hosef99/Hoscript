@@ -14,11 +14,11 @@ typedef enum
 typedef struct Value
 {
     ValueType type;
-    char boolean;
     union
     {
         double number;
         char* string;
+        int boolean;
         struct
         {
             int rows;
@@ -40,6 +40,7 @@ void print_value(Value value, const char* end, int* err);
 void free_value(Value value);
 Value copy_value(Value value, int* err);
 char* string_value(Value value, int* err);
+int bool_value(Value value);
 
 extern const Value EMPTY;
 #endif

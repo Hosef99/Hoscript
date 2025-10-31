@@ -166,3 +166,27 @@ char* string_value(Value value, int* err)
             return NULL;
     }
 }
+
+int bool_value(Value value)
+{
+    switch (value.type) {
+        case VAL_BOOL:
+            return value.boolean;
+            break;
+        case VAL_NUM:
+            return (value.number == 0) ? 0 : 1;
+        case VAL_LIST:
+            return value.list.size;
+        case VAL_MAT:
+            for (int i = 0; i < value.mat.rows; i++) {
+                for (int j = 0; j < value.mat.cols; j++) {
+                    if (value.mat.data[i][j] != 0) return 0;
+                }
+            }
+            return 1;
+        case VAL_STR:
+            return strcmp(value.string, "") ? 1 : 0;
+        default:
+            return 0;
+    }
+}
