@@ -1245,6 +1245,7 @@ void assign_to_index(ASTNode* node, Value rhs, Env* env, int* err)
 Value eval(ASTNode* node, Env* env, int* err)
 {
     Value a;
+    if (!node) return EMPTY;
     switch (node->type)
     {
     case AST_ASSIGN:
@@ -1277,10 +1278,8 @@ Value eval(ASTNode* node, Env* env, int* err)
             eval(node->program.nodes[i], env, err);
         }
         return EMPTY;
-
     default:
         return EMPTY;
-        break;
     }
 }
 
