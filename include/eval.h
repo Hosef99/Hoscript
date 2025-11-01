@@ -14,6 +14,7 @@ typedef struct
 {
     Variable* var;
     int var_count;
+    int is_file;
 } Env;
 
 typedef Value (*BuiltinFunc)(Value *args, int arg_size, int* err);

@@ -10,6 +10,7 @@
 ASTNode* parse_stmt(Parser* parser, int* err);
 ASTNode* parse_block(Parser* parser, int* err);
 ASTNode* parse_if(Parser* parser, int* err);
+ASTNode* parse_for(Parser* parser, int* err);
 ASTNode* parse_assign(Parser* parser, int* err); 
 ASTNode* parse_comp(Parser* parser, int* err); 
 ASTNode* parse_expr(Parser* parser, int* err); 
@@ -123,6 +124,7 @@ ASTNode* parse(Parser* parser, int* err)
 ASTNode* parse_stmt(Parser* parser, int* err)
 {
     if (match(parser, TOK_IF)) return parse_if(parser, err);
+    if (match(parser, TOK_FOR)) return parse_for(parser, err);
     if (match(parser, TOK_LBRACE)) return parse_block(parser, err);
     return parse_assign(parser, err);
 }
@@ -151,6 +153,24 @@ ASTNode* parse_if(Parser* parser, int* err)
     }
 
     return node;
+}
+
+ASTNode* parse_for(Parser* parser, int* err)
+{
+    ASTNode* for_node = malloc(sizeof(ASTNode));
+    for_node->type = AST_FOR;
+    advance(parser); // consume FOR
+    advance(parser); // consume LPAREN
+    for_node->for_node.var = strdup(parser->current_token.name);
+    advance(parser); // consume IDENT
+    advance(parser); // consume IN
+    for_node->for_node.iterator = parse_expr(parser, err);
+    advance(parser);
+    while (match(parser, TOK_NEWLINE)) {
+        advance(parser);
+    }
+    for_node->for_node.body = parse_stmt(parser, err);
+    return for_node;
 }
 
 ASTNode* parse_block(Parser* parser, int* err){
@@ -562,6 +582,17 @@ void print_ast(ASTNode* node, int indent)
             printf("ELSE_STMT:\n");
             print_ast(node->if_node.else_stmt, indent + 1);
             break;
+        case AST_FOR:
+            printf("FOR:\n");
+            for (int i = 0; i < indent+1; i++) printf("  ");
+            printf("Var: %s\n", node->for_node.var);
+            for (int i = 0; i < indent+1; i++) printf("  ");
+            printf("ITERATOR:\n");
+            print_ast(node->for_node.iterator, indent + 1);
+            for (int i = 0; i < indent+1; i++) printf("  ");
+            printf("BODY:\n");
+            print_ast(node->for_node.body, indent + 1);
+            break;
         case AST_PROGRAM:
             printf("PROGRAM:\n");
             for (int i = 0; i < node->program.count; i++)
@@ -605,6 +636,16 @@ void free_ast(ASTNode* node)
             for (int i = 0; i < node->list.size; i++)
                 free_ast(node->list.elements[i]);
             free(node->list.elements);
+            break;
+        case AST_IF:
+            free_ast(node->if_node.cond);
+            free_ast(node->if_node.if_stmt);
+            free_ast(node->if_node.else_stmt);
+            break;
+        case AST_FOR:
+            free(node->for_node.var);
+            free_ast(node->for_node.iterator);
+            free_ast(node->for_node.body);
             break;
         case AST_PROGRAM:
             for (int i = 0; i < node->program.count; i++)
