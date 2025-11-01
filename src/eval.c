@@ -1431,7 +1431,7 @@ Value eval(ASTNode* node, Env* env, int* err)
             a = eval(node->program.nodes[i], env, err);
             if (!env->is_file) {
                 temp = string_value(a, err);
-                    if (temp != NULL) {
+                if (temp != NULL) {
                     printf("%s\n", temp);
                     free(temp);
                 }

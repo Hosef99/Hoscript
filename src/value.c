@@ -162,6 +162,13 @@ char* string_value(Value value, int* err)
             }
             append_to_buffer(&buffer, &pos, &size, "]");
             return buffer;
+        case VAL_BOOL:
+            if (value.boolean) {
+                append_to_buffer(&buffer, &pos, &size, "true");
+            } else {
+                append_to_buffer(&buffer, &pos, &size, "false");
+            }
+            return buffer;
         default:
             return NULL;
     }
