@@ -7,9 +7,13 @@
 #include "parser.h"
 #include "value.h"
 
-ASTNode* parse_assign(Parser* parser, int* err);
+ASTNode* parse_stmt(Parser* parser, int* err);
+ASTNode* parse_block(Parser* parser, int* err);
 ASTNode* parse_or(Parser* parser, int* err); 
 ASTNode* parse_and(Parser* parser, int* err);   
+ASTNode* parse_if(Parser* parser, int* err);
+ASTNode* parse_for(Parser* parser, int* err);
+ASTNode* parse_assign(Parser* parser, int* err); 
 ASTNode* parse_comp(Parser* parser, int* err); 
 ASTNode* parse_expr(Parser* parser, int* err); 
 ASTNode* parse_term(Parser* parser, int* err); 
@@ -18,8 +22,7 @@ ASTNode* parse_mul(Parser* parser, int* err);
 ASTNode* parse_power(Parser* parser, int* err); 
 ASTNode* parse_base(Parser* parser, int* err); 
 ASTNode* parse_func(Parser* parser, int* err); 
-ASTNode* parse_mat(Parser* parser, int* err); 
-ASTNode* parse_row(Parser* parser, int* err);
+ASTNode* parse_list(Parser* parser, int* err); 
 ASTNode* parse_postfix(Parser* parser, int* err); 
 ASTNode* parse_slice(Parser* parser, int* err);
 int implicit_mul(Parser* parser);
@@ -90,10 +93,10 @@ ASTNode* parse(Parser* parser, int* err)
     program->program.nodes = malloc(program_size*sizeof(ASTNode*));
 
     parser->current_token = peek(parser, 0); // ni
-    ASTNode* assign = parse_assign(parser, err); // take over parse_assign()
+    ASTNode* stmt = parse_stmt(parser, err); // take over parse_assign()
     if (*err) return NULL;
 
-    program->program.nodes[program->program.count++] = assign;
+    program->program.nodes[program->program.count++] = stmt;
 
     while (match(parser, TOK_NEWLINE)) {
         advance(parser);
@@ -102,14 +105,14 @@ ASTNode* parse(Parser* parser, int* err)
             program_size *= 2;
             program->program.nodes = realloc(program->program.nodes, program_size * sizeof(ASTNode*));
         }
-        assign = parse_assign(parser, err);
-        if (assign->type == AST_EOF)
+        stmt = parse_stmt(parser, err);
+        if (stmt->type == AST_EOF)
         {
-            free_ast(assign);
+            free_ast(stmt);
             continue;
         }
         if (*err) return NULL;
-        program->program.nodes[program->program.count++] = assign;
+        program->program.nodes[program->program.count++] = stmt;
     }
 
     if (!match(parser, TOK_EOF)) 
@@ -119,6 +122,100 @@ ASTNode* parse(Parser* parser, int* err)
     }
     return program;
 }
+
+ASTNode* parse_stmt(Parser* parser, int* err)
+{
+    if (match(parser, TOK_IF)) return parse_if(parser, err);
+    if (match(parser, TOK_FOR)) return parse_for(parser, err);
+    if (match(parser, TOK_LBRACE)) return parse_block(parser, err);
+    return parse_assign(parser, err);
+}
+
+ASTNode* parse_if(Parser* parser, int* err)
+{
+    ASTNode* node = malloc(sizeof(ASTNode));
+    node->type = AST_IF;
+    advance(parser); // consume IF
+    advance(parser); // consume LPAREN
+    node->if_node.cond = parse_assign(parser, err);
+    advance(parser); // consume RPAREN
+    while (match(parser, TOK_NEWLINE)) {
+        advance(parser);
+    }
+    node->if_node.if_stmt = parse_stmt(parser, err);
+    if (match(parser, TOK_ELSE)) {
+        advance(parser); // consume ELSE
+        while (match(parser, TOK_NEWLINE)) {
+            advance(parser);
+        }
+        node->if_node.else_stmt = parse_stmt(parser, err);
+    }
+    else {
+        node->if_node.else_stmt = NULL;
+    }
+
+    return node;
+}
+
+ASTNode* parse_for(Parser* parser, int* err)
+{
+    ASTNode* for_node = malloc(sizeof(ASTNode));
+    for_node->type = AST_FOR;
+    advance(parser); // consume FOR
+    advance(parser); // consume LPAREN
+    for_node->for_node.var = strdup(parser->current_token.name);
+    advance(parser); // consume IDENT
+    advance(parser); // consume IN
+    for_node->for_node.iterator = parse_expr(parser, err);
+    advance(parser);
+    while (match(parser, TOK_NEWLINE)) {
+        advance(parser);
+    }
+    for_node->for_node.body = parse_stmt(parser, err);
+    return for_node;
+}
+
+ASTNode* parse_block(Parser* parser, int* err){
+    advance(parser);
+    int block_size = 4;
+    ASTNode* block = malloc(sizeof(ASTNode));
+    block->type = AST_PROGRAM;
+    block->program.count = 0;
+    block->program.nodes = malloc(block_size*sizeof(ASTNode*));
+
+    while (match(parser, TOK_NEWLINE)) {
+        advance(parser);
+    }
+
+    parser->current_token = peek(parser, 0); // ni
+    ASTNode* assign = parse_stmt(parser, err); // take over parse_assign()
+    if (*err) return NULL;
+
+    block->program.nodes[block->program.count++] = assign;
+
+    while (match(parser, TOK_NEWLINE)) {
+        advance(parser);
+        if (match(parser, TOK_RBRACE)) {
+            advance(parser);
+            break;
+        }
+        if (block->program.count == block_size)
+        {
+            block_size *= 2;
+            block->program.nodes = realloc(block->program.nodes, block_size * sizeof(ASTNode*));
+        }
+        assign = parse_stmt(parser, err);
+        if (assign->type == AST_EOF)
+        {
+            free_ast(assign);
+            continue;
+        }
+        if (*err) return NULL;
+        block->program.nodes[block->program.count++] = assign;
+    }
+    return block;
+}
+
 // Top-level
 ASTNode* parse_assign(Parser* parser, int* err) 
 {
@@ -342,7 +439,7 @@ ASTNode* parse_base(Parser* parser, int* err)
     }
 
     if (match(parser, TOK_LBRACK))
-        return parse_mat(parser, err);
+        return parse_list(parser, err);
 
     if (match(parser, TOK_STRING))
     {
@@ -411,29 +508,36 @@ ASTNode* parse_func(Parser* parser, int* err)
     return node;
 }
 
-ASTNode* parse_mat(Parser* parser, int* err)
+ASTNode* parse_list(Parser* parser, int* err)
 {
     advance(parser); // consume '['
 
     ASTNode* node = malloc(sizeof(ASTNode));
-    node->type = AST_MAT;
-    node->mat.row_cap = 4;
-    node->mat.matrix = malloc(node->mat.row_cap * sizeof(ASTNode*));
-    node->mat.rows = 1;
+    node->type = AST_LIST;
+    node->list.max_size = 4;
+    node->list.elements = malloc(node->list.max_size * sizeof(ASTNode*));
+    node->list.size = 0;
 
-    node->mat.matrix[0] = parse_row(parser, err);
+    if (match(parser, TOK_RBRACK)) {
+        advance(parser);
+        return node;
+    }
 
-    while (parser->current_token.type == TOK_SEMI && !*err) 
+    node->list.elements[0] = parse_assign(parser, err);
+    node->list.size = 1;
+
+
+    while (parser->current_token.type == TOK_COMMA && !*err) 
     {
-        advance(parser); // consume ';'
+        advance(parser); // consume ','
 
-        if (node->mat.rows == node->mat.row_cap) 
+        if (node->list.size == node->list.max_size) 
         {
-            node->mat.row_cap *= 2;
-            node->mat.matrix = realloc(node->mat.matrix, node->mat.row_cap * sizeof(ASTNode*));
+            node->list.max_size *= 2;
+            node->list.elements = realloc(node->list.elements, node->list.max_size * sizeof(ASTNode*));
         }
 
-        node->mat.matrix[node->mat.rows++] = parse_row(parser, err);
+        node->list.elements[node->list.size++] = parse_assign(parser, err);
     }
 
     if (parser->current_token.type != TOK_RBRACK) 
@@ -444,32 +548,6 @@ ASTNode* parse_mat(Parser* parser, int* err)
     }
 
     advance(parser); // consume ']'
-    return node;
-}
-
-ASTNode* parse_row(Parser* parser, int* err)
-{
-    ASTNode* node = malloc(sizeof(ASTNode));
-    node->type = AST_ROW;
-    node->row.col_cap = 4;
-    node->row.elements = malloc(node->row.col_cap * sizeof(ASTNode*));
-    node->row.cols = 1;
-
-    node->row.elements[0] = parse_expr(parser, err);
-
-    while (parser->current_token.type == TOK_COMMA && !*err) 
-    {
-        advance(parser); // consume ','
-
-        if (node->row.cols == node->row.col_cap) 
-        {
-            node->row.col_cap *= 2;
-            node->row.elements = realloc(node->row.elements, node->row.col_cap * sizeof(ASTNode*));
-        }
-
-        node->row.elements[node->row.cols++] = parse_expr(parser, err);
-    }
-
     return node;
 }
 
@@ -486,8 +564,11 @@ int implicit_mul(Parser* parser)
 
 void print_ast(ASTNode* node, int indent)
 {
-    if (!node) return;
     for (int i = 0; i < indent; i++) printf("  ");
+    if (!node) {
+        printf("NULL\n");
+        return;
+    }
 
     switch (node->type) {
         case AST_NUM:
@@ -500,7 +581,7 @@ void print_ast(ASTNode* node, int indent)
             printf("VAR: %s\n", node->name);
             break;
         case AST_BINOP:
-            printf("BINOP: %d\n", node->binary.op);
+            printf("BINOP: %s\n", type_to_string(node->binary.op));
             print_ast(node->binary.left, indent + 1);
             print_ast(node->binary.right, indent + 1);
             break;
@@ -528,15 +609,31 @@ void print_ast(ASTNode* node, int indent)
             for (int i = 0; i < node->func.arg_size; i++)
                 print_ast(node->func.args[i], indent + 1);
             break;
-        case AST_ROW:
-            printf("ROW (%d cols)\n", node->row.cols);
-            for (int i = 0; i < node->row.cols; i++)
-                print_ast(node->row.elements[i], indent + 1);
+        case AST_LIST:
+            printf("LIST (%d elements)\n", node->list.size);
+            for (int i = 0; i < node->list.size; i++)
+                print_ast(node->list.elements[i], indent + 1);
             break;
-        case AST_MAT:
-            printf("MAT (%d rows)\n", node->mat.rows);
-            for (int i = 0; i < node->mat.rows; i++)
-                print_ast(node->mat.matrix[i], indent + 1);
+        case AST_IF:
+            printf("IF:\n");
+            print_ast(node->if_node.cond, indent + 1);
+            for (int i = 0; i < indent+1; i++) printf("  ");
+            printf("IF_STMT:\n");
+            print_ast(node->if_node.if_stmt, indent + 1);
+            for (int i = 0; i < indent+1; i++) printf("  ");
+            printf("ELSE_STMT:\n");
+            print_ast(node->if_node.else_stmt, indent + 1);
+            break;
+        case AST_FOR:
+            printf("FOR:\n");
+            for (int i = 0; i < indent+1; i++) printf("  ");
+            printf("Var: %s\n", node->for_node.var);
+            for (int i = 0; i < indent+1; i++) printf("  ");
+            printf("ITERATOR:\n");
+            print_ast(node->for_node.iterator, indent + 1);
+            for (int i = 0; i < indent+1; i++) printf("  ");
+            printf("BODY:\n");
+            print_ast(node->for_node.body, indent + 1);
             break;
         case AST_PROGRAM:
             printf("PROGRAM:\n");
@@ -568,7 +665,6 @@ void free_ast(ASTNode* node)
         case AST_IDENT:
             free(node->name);
             break;
-
         case AST_BINOP:
         case AST_INDEX:
         case AST_SLICE:
@@ -578,17 +674,20 @@ void free_ast(ASTNode* node)
         case AST_UNOP:
             free_ast(node->unary.right);
             break;
-
-        case AST_ROW:
-            for (int i = 0; i < node->row.cols; i++)
-                free_ast(node->row.elements[i]);
-            free(node->row.elements);
+        case AST_LIST:
+            for (int i = 0; i < node->list.size; i++)
+                free_ast(node->list.elements[i]);
+            free(node->list.elements);
             break;
-
-        case AST_MAT:
-            for (int i = 0; i < node->mat.rows; i++)
-                free_ast(node->mat.matrix[i]);
-            free(node->mat.matrix);
+        case AST_IF:
+            free_ast(node->if_node.cond);
+            free_ast(node->if_node.if_stmt);
+            free_ast(node->if_node.else_stmt);
+            break;
+        case AST_FOR:
+            free(node->for_node.var);
+            free_ast(node->for_node.iterator);
+            free_ast(node->for_node.body);
             break;
         case AST_PROGRAM:
             for (int i = 0; i < node->program.count; i++)

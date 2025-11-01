@@ -12,6 +12,8 @@ typedef enum {
     TOK_RPAREN,     // )
     TOK_LBRACK,     // [
     TOK_RBRACK,     // ]
+    TOK_LBRACE,     // {
+    TOK_RBRACE,     // }
     TOK_IDENT,      // variable or function names
     TOK_COMMA,      // ,
     TOK_SEMI,       // ;
@@ -28,6 +30,10 @@ typedef enum {
     TOK_OR,         // ||
     TOK_AND,        // &&
     TOK_NEWLINE,    // \n
+    TOK_IF,         // if
+    TOK_ELSE,       // else
+    TOK_FOR,        // for
+    TOK_IN,
     TOK_EOF         // end of input
 } TokenType;
 

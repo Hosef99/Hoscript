@@ -63,6 +63,8 @@ Value printvar(Value *args, int n, int *err);
 Value clear_screen(Value* args, int n, int* err);
 Value save_env(Value* args, int n, int* err);
 Value read_env(Value* args, int n, int* err);
+Value mat(Value* args, int n, int* err);
+Value range(Value* args, int n, int* err);
 
 // EVAL RELATED FUNCTIONS
 Value eval(ASTNode *root, Env *env, int *err);
@@ -70,7 +72,7 @@ Value get_var(const char *name, Env *env, int *err);
 void set_var(const char *name, Value value, Env *env, int *err);
 Value calc_func(const char *name, Value *args, int arg_size, int *err);
 void assign_to_index(ASTNode *node, Value rhs, Env *env, int *err);
-void interpret(const char *input, Env *env, int is_file, int *err);
+void interpret(const char *input, Env *env, int *err);
 
 void set_current_env(Env *env)
 {
@@ -147,6 +149,8 @@ BuiltinEntry builtins[] = {
     {"cls", clear_screen, 0, "cls(): clears the screen"},
     {"save_env", save_env, 1, "save_env(filename): saves the environment into filename"},
     {"read_env", read_env, 1, "read_env(filename): reads the environment from filename"},
+    {"mat", mat, 1, "mat(list(list)): converts a 2d list to a matrix"},
+    {"range", range, -1, "range(start, end, step): produces a list of numbers"},
     {"sin", builtin_sin, 1, "sin(num): sine of angle"},
     {"cos", builtin_cos, 1, "cos(num): cosine of angle"},
     {"tan", builtin_tan, 1, "tan(num): tangent of angle"},
@@ -319,9 +323,139 @@ Value read_env(Value* args, int n, int* err) {
 
     buffer = read_file(args[0].string, err);
     if (*err) return res;
-    interpret(buffer, current_env, IS_FILE, err);
+    interpret(buffer, current_env, err);
     printf("Successfully readed %s into environment.\n", args[0].string);
     free(buffer);
+
+    return res;
+}
+
+Value mat(Value* args, int n, int* err) {
+    Value res;
+
+    if (n != 1 || args[0].type != VAL_LIST) {
+        fprintf(stderr, "mat expects 1 list argument\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    Value list = args[0];
+    int rows = list.list.size;
+    int cols = 0;
+    // consistency check for each row
+
+    if (rows == 0) {
+        fprintf(stderr, "Type Error: cannot have an empty matrix.\n");
+        *err = 1;
+        return EMPTY;
+    }
+    for (int i = 0; i < rows; i++) {
+        Value list_element = list.list.elements[i];
+        if (list_element.type != VAL_LIST) {
+            fprintf(stderr, "Type Error: nested list must be used to convert a 2d list into a matrix.\n");
+            *err = 1;
+            return EMPTY;
+        }
+        if (cols == 0) cols = list_element.list.size;
+        else if (cols != list_element.list.size) {
+            fprintf(stderr, "Matrix Error: inconsistent columns\n");
+            *err = 1;
+            return EMPTY;
+        }
+        for (int j = 0; j < cols; j++) {
+            if (list_element.list.elements[j].type != VAL_NUM) {
+                fprintf(stderr, "Type Error: elements in matrices must be numbers.\n");
+                *err = 1;
+                return EMPTY;
+            }
+        }
+    }
+    if (cols == 0) {
+        fprintf(stderr, "Type Error: cannot have an empty matrix.\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    res.type = VAL_MAT;
+    res.mat.rows = rows;
+    res.mat.cols = cols;
+    res.mat.data = alloc_mat(rows, cols);
+    if (!res.mat.data) {
+        fprintf(stderr, "Memory Error: allocation failed\n");
+        *err = 1;
+        return EMPTY;
+    }
+    for (int i = 0; i < rows; i++) {
+         Value list_element = list.list.elements[i];
+        for (int j = 0; j < cols; j++) {
+            res.mat.data[i][j] = list_element.list.elements[j].number;
+        }
+    }
+
+    return res;
+}
+
+Value range(Value* args, int n, int* err) {
+    Value res;
+    res.type = VAL_LIST;
+
+    if (n == 0 || n > 3) {
+        fprintf(stderr, "range expects 1–3 numeric arguments\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    for (int i = 0; i < n; i++) {
+        if (args[i].type != VAL_NUM) {
+            fprintf(stderr, "range expects numeric arguments\n");
+            *err = 1;
+            return EMPTY;
+        }
+    }
+
+    int start = 0, end = 0, step = 1;
+
+    if (n == 1) {
+        end = (int)args[0].number;
+    } else if (n == 2) {
+        start = (int)args[0].number;
+        end = (int)args[1].number;
+    } else if (n == 3) {
+        start = (int)args[0].number;
+        end = (int)args[1].number;
+        step = (int)args[2].number;
+        if (step == 0) {
+            fprintf(stderr, "range step cannot be zero\n");
+            *err = 1;
+            return EMPTY;
+        }
+    }
+
+    // Calculate number of elements
+    int count = 0;
+    if ((step > 0 && start < end) || (step < 0 && start > end)) {
+        count = abs((end - start + step - (step > 0 ? 1 : -1)) / step);
+    }
+
+    res.list.size = count;
+    res.list.elements = malloc(count * sizeof(Value));
+
+    int idx = 0;
+    if (step > 0) {
+        for (int i = start; i < end; i += step) {
+            Value v;
+            v.type = VAL_NUM;
+            v.number = i;
+            res.list.elements[idx++] = v;
+        }
+    } else {
+        for (int i = start; i > end; i += step) {
+            Value v;
+            v.type = VAL_NUM;
+            v.number = i;
+            res.list.elements[idx++] = v;
+        }
+    }
 
     return res;
 }
@@ -333,7 +467,47 @@ void eval_program(ASTNode* node, Env *env, int *err)
     for (int i = 0; i < node->program.count; i++)
     {
         eval(node->program.nodes[i], env, err);
+        if (*err) return;
     }
+}
+
+void eval_if(ASTNode *node, Env *env, int *err)
+{
+    Value cond = eval(node->if_node.cond, env, err);
+    if (bool_value(cond)) {
+        eval(node->if_node.if_stmt, env, err);
+    } else {
+        eval(node->if_node.else_stmt, env, err);
+    }
+}
+
+void eval_for(ASTNode *node, Env *env, int*err)
+{
+    Value iterable = eval(node->for_node.iterator, env, err);
+    if (!is_iterator(iterable) || iterable.type == VAL_MAT) {
+        fprintf(stderr, "Type Error: value is not iterable\n");
+        *err = 1;
+        return;
+    }
+
+    int size;
+    switch (iterable.type) {
+        case VAL_STR:
+            size = strlen(iterable.string);
+            break;
+        case VAL_LIST:
+            size = iterable.list.size;
+            break;
+        default:
+            size = 0;
+            break;
+    }
+
+    for (int i = 0; i < size; i++) {
+        set_var(node->for_node.var, index_value(iterable, i, err), env, err);
+        eval(node->for_node.body, env, err);
+    }
+    free_value(iterable);
 }
 
 Value eval_assign(ASTNode *node, Env *env, int *err)
@@ -851,50 +1025,37 @@ Value eval_unop(ASTNode *node, Env *env, int *err)
     return val;
 }
 
-Value eval_mat(ASTNode *node, Env *env, int *err)
+Value eval_list(ASTNode *node, Env *env, int *err)
 {
     // start evaluating matrices
     Value a, res;
-    ASTNode *row;
-    int rows = node->mat.rows;
-    int cols = node->mat.matrix[0]->row.cols;
-    res.type = VAL_MAT;
-    res.mat.rows = rows;
-    res.mat.cols = cols;
-    res.mat.data = alloc_mat(rows, cols);
-    if (!res.mat.data)
+    int size = node->list.size;
+    res.type = VAL_LIST;
+    res.list.size = size;
+    res.list.elements = malloc(size * sizeof(Value));
+    if (!res.list.elements)
     {
         fprintf(stderr, "Memory Error: allocation failed\n");
         *err = 1;
         return EMPTY;
     }
 
-    for (int i = 0; i < rows; i++)
+    for (int i = 0; i < size; i++)
     {
-        row = node->mat.matrix[i];
-        if (row->row.cols != cols)
-        {
-            fprintf(stderr, "Matrix Error: columns not consistent\n");
-            *err = 1;
+        a = eval(node->list.elements[i], env, err);
+
+        if (*err) {
+            for (int j = 0; j < i; j++) {
+                free_value(res.list.elements[j]);
+            }
+            free(res.list.elements);
             return EMPTY;
         }
 
-        for (int j = 0; j < cols; j++)
-        {
-            a = eval(row->row.elements[j], env, err);
-            if (a.type != VAL_NUM)
-            {
-                fprintf(stderr, "Value Error: contents of matrix must be a double\n");
-                *err = 1;
-                return EMPTY;
-            }
-
-            res.mat.data[i][j] = a.number;
-        }
+        res.list.elements[i] = a;
     }
     return res;
 }
-
 
 Value eval_slice(ASTNode* node, Env* env, int* err)
 {
@@ -912,37 +1073,65 @@ Value eval_slice(ASTNode* node, Env* env, int* err)
     }
 
     if (!is_iterator(left)) {
+        free_value(left);
+        free_value(start_val);
+        free_value(end_val);
         fprintf(stderr, "Type Error: value is not an iterator.\n");
         *err = 1;
         return EMPTY;
     }
 
     int n = 0;
-    if (left.type == VAL_MAT)
-        n = (left.mat.rows == 1) ? left.mat.cols : left.mat.rows;
-    else if (left.type == VAL_STR)
-        n = strlen(left.string);
+    switch (left.type) {
+        case VAL_MAT:
+            n = (left.mat.rows == 1) ? left.mat.cols : left.mat.rows;
+            break;
+        case VAL_STR:
+            n = strlen(left.string);
+            break;
+        case VAL_LIST:
+            n = left.list.size;
+            break;
+        default:
+            break;
+    }
 
     int start = (int)start_val.number;
     int end = (int)end_val.number;
 
     if (start < 0 || start >= n || end < 0 || end > n) {
+        free_value(left);
+        free_value(start_val);
+        free_value(end_val);
         fprintf(stderr, "Index Error: index out of bounds\n");
         *err = 1;
         return EMPTY;
     }
 
-    if (end < start) {
-        if (left.type == VAL_STR) {
-            res.type = VAL_STR;
-            res.string = malloc(1);
-            res.string[0] = '\0';
-        } else if (left.type == VAL_MAT) {
-            res.type = VAL_MAT;
-            res.mat.rows = 0;
-            res.mat.cols = (left.mat.rows == 1) ? 0 : left.mat.cols;
-            res.mat.data = NULL;
+    if (end <= start) {
+        switch (left.type) {
+            case VAL_STR:
+                res.type = VAL_STR;
+                res.string = malloc(1);
+                res.string[0] = '\0';
+                break;
+            case VAL_MAT:
+                res.type = VAL_MAT;
+                res.mat.rows = 0;
+                res.mat.cols = (left.mat.rows == 1) ? 0 : left.mat.cols;
+                res.mat.data = NULL;
+                break;
+            case VAL_LIST:
+                res.type = VAL_LIST;
+                res.list.size = 0;
+                res.list.elements = NULL;
+                break;
+            default:
+                break;
         }
+        free_value(left);
+        free_value(start_val);
+        free_value(end_val);
         return res;
     }
 
@@ -954,6 +1143,9 @@ Value eval_slice(ASTNode* node, Env* env, int* err)
         slice_string[size] = '\0';
         res.type = VAL_STR;
         res.string = slice_string;
+        free_value(left);
+        free_value(start_val);
+        free_value(end_val);
         return res;
     }
 
@@ -993,9 +1185,28 @@ Value eval_slice(ASTNode* node, Env* env, int* err)
             }
         }
 
+        free_value(left);
+        free_value(start_val);
+        free_value(end_val);
         return res;
     }
 
+    else if (left.type == VAL_LIST) {
+        res.type = VAL_LIST;
+        res.list.size = size;
+        res.list.elements = malloc(size * sizeof(Value));
+        for (int i = 0; i < size; i++) {
+            res.list.elements[i] = copy_value(left.list.elements[i + start], err);
+        }
+        free_value(left);
+        free_value(start_val);
+        free_value(end_val);
+        return res;
+    }
+
+    free_value(left);
+    free_value(start_val);
+    free_value(end_val);
     fprintf(stderr, "Type Error: cannot slice this value.\n");
     *err = 1;
     return EMPTY;
@@ -1098,6 +1309,14 @@ Value eval_index(ASTNode* node, Env* env, int* err)
             v.string[0] = buffer;
             v.string[1] = '\0';
             return v;
+        case VAL_LIST:
+            if (left.list.size <= index.number || index.number < 0) {
+                fprintf(stderr, "Index Error: index out of bounds\n");
+                *err = 1;
+                return EMPTY;
+            }
+            v = copy_value(left.list.elements[(int)index.number], err);
+        return v;
         default:
             fprintf(stderr, "TypeError: invalid indexing target.\n");
             *err = 1;
@@ -1175,6 +1394,8 @@ void assign_to_index(ASTNode* node, Value rhs, Env* env, int* err)
 Value eval(ASTNode* node, Env* env, int* err)
 {
     Value a;
+    char *temp;
+    if (!node) return EMPTY;
     switch (node->type)
     {
     case AST_ASSIGN:
@@ -1195,18 +1416,31 @@ Value eval(ASTNode* node, Env* env, int* err)
         return eval_func(node, env, err);
     case AST_UNOP:
         return eval_unop(node, env, err);
-    case AST_MAT:
-        return eval_mat(node, env, err);
+    case AST_LIST:
+        return eval_list(node, env, err);
     case AST_INDEX:
         return eval_index(node, env, err);
+    case AST_IF:
+        eval_if(node, env, err);
+        return EMPTY;
+    case AST_FOR:
+        eval_for(node, env, err);
+        return EMPTY;
     case AST_PROGRAM:
-        if (node->program.count == 0) 
-            return EMPTY;
-        return eval(node->program.nodes[0], env, err);
-
+        for (int i = 0; i < node->program.count; i++) {
+            a = eval(node->program.nodes[i], env, err);
+            if (!env->is_file) {
+                temp = string_value(a, err);
+                    if (temp != NULL) {
+                    printf("%s\n", temp);
+                    free(temp);
+                }
+            }
+                
+        }
+        return EMPTY;
     default:
         return EMPTY;
-        break;
     }
 }
 
@@ -1287,7 +1521,7 @@ Value calc_func(const char *name, Value *args, int arg_size, int *err)
     return EMPTY;
 }
 
-void interpret(const char *input, Env *env, int is_file, int *err)
+void interpret(const char *input, Env *env, int *err)
 {
     set_current_env(env);
     int tok_count;
@@ -1297,8 +1531,7 @@ void interpret(const char *input, Env *env, int is_file, int *err)
     }
 
     Token *tokens = generate_tokens(input, &tok_count, err);
-    if (*err)
-        return;
+    if (*err) return;
 
     Parser parser = {tokens, tok_count, 0, tokens[0]};
     ASTNode *root = parse(&parser, err);
@@ -1318,34 +1551,12 @@ void interpret(const char *input, Env *env, int is_file, int *err)
         return;
     }
 
-    if (is_file) {
-        eval_program(root, env, err);
-        if (*err) {
-            free_tokens(tokens, tok_count);
-            free_ast(root);
-            return;
-        }
-    }
-    else {
-        Value result = eval(root, env, err);
-        if (*err)
-        {
-            free_tokens(tokens, tok_count);
-            free_ast(root);
-            return;
-        }
+    eval(root, env, err);
 
-        if (!*err && tok_count != 1)
-        {
-            if (root->program.nodes[0]->type != AST_ASSIGN)
-            {
-                if (!is_file)
-                {
-                    print_value(result, "\n", err);
-                }
-                free_value(result);
-            }
-        }
+    if (*err) {
+        free_tokens(tokens, tok_count);
+        free_ast(root);
+        return;
     }
 
     set_current_env(env);
@@ -1357,7 +1568,7 @@ void interpret(const char *input, Env *env, int is_file, int *err)
 void start_repl()
 {
     Variable vars[VAR_MAX];
-    Env env = {vars, 0};
+    Env env = {vars, 0, NOT_FILE};
     char *input;
 
     const char *history_file = ".interpreter_history";
@@ -1373,7 +1584,7 @@ void start_repl()
 
         add_history(input);
 
-        interpret(input, &env, NOT_FILE, &err);
+        interpret(input, &env, &err);
 
         free(input);
     }
@@ -1392,9 +1603,9 @@ void run_file(const char *filename, int *err)
     }
 
     Variable vars[VAR_MAX];
-    Env env = {vars, 0};
+    Env env = {vars, 0, IS_FILE};
 
-    interpret(source, &env, IS_FILE, err);
+    interpret(source, &env, err);
 
     free(source);
 }

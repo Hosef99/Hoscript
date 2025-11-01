@@ -15,12 +15,13 @@ typedef enum
     AST_IDENT,
     AST_ASSIGN,
     AST_FUNC,
-    AST_ROW,
-    AST_MAT,
+    AST_LIST,
     AST_INDEX,
     AST_SLICE,
     AST_STRING,
+    AST_IF,
     AST_PROGRAM,
+    AST_FOR,
     AST_EOF
 } ASTNodeType;
 
@@ -56,16 +57,22 @@ typedef struct ASTNode
         } func;
         struct
         {
-            int row_cap;
-            int rows;
-            struct ASTNode **matrix;
-        } mat;
+            int max_size;
+            int size;
+            struct ASTNode **elements;
+        } list;
         struct
         {
-            struct ASTNode **elements;
-            int cols;
-            int col_cap;
-        } row;
+            struct ASTNode *cond;
+            struct ASTNode *if_stmt;
+            struct ASTNode *else_stmt;
+        } if_node;
+        struct
+        {
+            char *var;
+            struct ASTNode *iterator;
+            struct ASTNode *body;
+        } for_node;
         struct
         {
             struct ASTNode **nodes;
