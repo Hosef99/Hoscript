@@ -7,7 +7,9 @@
 #include "parser.h"
 #include "value.h"
 
-ASTNode* parse_assign(Parser* parser, int* err); 
+ASTNode* parse_assign(Parser* parser, int* err);
+ASTNode* parse_or(Parser* parser, int* err); 
+ASTNode* parse_and(Parser* parser, int* err);   
 ASTNode* parse_comp(Parser* parser, int* err); 
 ASTNode* parse_expr(Parser* parser, int* err); 
 ASTNode* parse_term(Parser* parser, int* err); 
@@ -120,7 +122,7 @@ ASTNode* parse(Parser* parser, int* err)
 // Top-level
 ASTNode* parse_assign(Parser* parser, int* err) 
 {
-    ASTNode* left = parse_comp(parser, err);
+    ASTNode* left = parse_or(parser, err);
     if (*err) return NULL;
 
     if (match(parser, TOK_ASSIGN)) 
@@ -140,6 +142,38 @@ ASTNode* parse_assign(Parser* parser, int* err)
         assign->assign.left = left;
         assign->assign.expr = rhs;
         return assign;
+    }
+
+    return left;
+}
+
+ASTNode* parse_or(Parser* parser, int* err)
+{
+    ASTNode* left = parse_and(parser, err);
+    if (*err) return NULL;
+
+    while (match(parser, TOK_OR)) {
+        TokenType op = parser->current_token.type;
+        advance(parser);
+        ASTNode* right = parse_and(parser, err);
+        if (*err) return NULL;
+        left = make_op_node(op, left, right);
+    }
+
+    return left;
+}
+
+ASTNode* parse_and(Parser* parser, int* err)
+{
+    ASTNode* left = parse_comp(parser, err);
+    if (*err) return NULL;
+
+    while (match(parser, TOK_AND)) {
+        TokenType op = parser->current_token.type;
+        advance(parser);
+        ASTNode* right = parse_comp(parser, err);
+        if (*err) return NULL;
+        left = make_op_node(op, left, right);
     }
 
     return left;
@@ -202,6 +236,14 @@ ASTNode* parse_mul(Parser* parser, int* err) // e.g. 7a
 
 ASTNode* parse_factor(Parser* parser, int* err)
 {
+    while (match(parser, TOK_NOT)) 
+    {
+        TokenType op = parser->current_token.type;
+        advance(parser);
+        ASTNode* right = parse_factor(parser, err);
+        if (*err) return NULL;
+        return make_unary_node(op, right);
+    }
     int sign = 1;
     while (match(parser, TOK_PLUS) || match(parser, TOK_MINUS)) 
     {
