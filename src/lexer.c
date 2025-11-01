@@ -42,6 +42,8 @@ char* type_to_string(TokenType type)
     case TOK_NEWLINE:   return "Newline";
     case TOK_IF:        return "If";
     case TOK_ELSE:      return "Else";
+    case TOK_FOR:       return "For";
+    case TOK_IN:        return "In";
     case TOK_EOF:       return "EOF";
     default:            return "Unknown";
     }
@@ -232,6 +234,8 @@ Token lex_identifier(const char* input, int* pos, int* err)
     buffer[index] = '\0';
     if (strcmp(buffer, "if") == 0) return (Token) {TOK_IF, 0, NULL};
     if (strcmp(buffer, "else") == 0) return (Token) {TOK_ELSE, 0, NULL};
+    if (strcmp(buffer, "for") == 0) return (Token) {TOK_FOR, 0, NULL};
+    if (strcmp(buffer, "in") == 0) return (Token) {TOK_IN, 0, NULL};
     token.name = strdup(buffer); // NEED TO BE CAREFUL OF MEMORY LEAK
     token.value = 0;
     return token;

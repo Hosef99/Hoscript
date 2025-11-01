@@ -21,6 +21,7 @@ typedef enum
     AST_STRING,
     AST_IF,
     AST_PROGRAM,
+    AST_FOR,
     AST_EOF
 } ASTNodeType;
 
@@ -66,6 +67,12 @@ typedef struct ASTNode
             struct ASTNode *if_stmt;
             struct ASTNode *else_stmt;
         } if_node;
+        struct
+        {
+            char *var;
+            struct ASTNode *iterator;
+            struct ASTNode *body;
+        } for_node;
         struct
         {
             struct ASTNode **nodes;

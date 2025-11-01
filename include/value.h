@@ -41,6 +41,8 @@ void free_value(Value value);
 Value copy_value(Value value, int* err);
 char* string_value(Value value, int* err);
 int bool_value(Value value);
+Value index_value(Value value, int index, int *err);
+Value slice_value(Value value, int start, int end, int *err);
 
 extern const Value EMPTY;
 #endif

@@ -64,6 +64,7 @@ Value clear_screen(Value* args, int n, int* err);
 Value save_env(Value* args, int n, int* err);
 Value read_env(Value* args, int n, int* err);
 Value mat(Value* args, int n, int* err);
+Value range(Value* args, int n, int* err);
 
 // EVAL RELATED FUNCTIONS
 Value eval(ASTNode *root, Env *env, int *err);
@@ -71,7 +72,7 @@ Value get_var(const char *name, Env *env, int *err);
 void set_var(const char *name, Value value, Env *env, int *err);
 Value calc_func(const char *name, Value *args, int arg_size, int *err);
 void assign_to_index(ASTNode *node, Value rhs, Env *env, int *err);
-void interpret(const char *input, Env *env, int is_file, int *err);
+void interpret(const char *input, Env *env, int *err);
 
 void set_current_env(Env *env)
 {
@@ -149,6 +150,7 @@ BuiltinEntry builtins[] = {
     {"save_env", save_env, 1, "save_env(filename): saves the environment into filename"},
     {"read_env", read_env, 1, "read_env(filename): reads the environment from filename"},
     {"mat", mat, 1, "mat(list(list)): converts a 2d list to a matrix"},
+    {"range", range, -1, "range(start, end, step): produces a list of numbers"},
     {"sin", builtin_sin, 1, "sin(num): sine of angle"},
     {"cos", builtin_cos, 1, "cos(num): cosine of angle"},
     {"tan", builtin_tan, 1, "tan(num): tangent of angle"},
@@ -321,7 +323,7 @@ Value read_env(Value* args, int n, int* err) {
 
     buffer = read_file(args[0].string, err);
     if (*err) return res;
-    interpret(buffer, current_env, IS_FILE, err);
+    interpret(buffer, current_env, err);
     printf("Successfully readed %s into environment.\n", args[0].string);
     free(buffer);
 
@@ -393,6 +395,71 @@ Value mat(Value* args, int n, int* err) {
     return res;
 }
 
+Value range(Value* args, int n, int* err) {
+    Value res;
+    res.type = VAL_LIST;
+
+    if (n == 0 || n > 3) {
+        fprintf(stderr, "range expects 1–3 numeric arguments\n");
+        *err = 1;
+        return EMPTY;
+    }
+
+    for (int i = 0; i < n; i++) {
+        if (args[i].type != VAL_NUM) {
+            fprintf(stderr, "range expects numeric arguments\n");
+            *err = 1;
+            return EMPTY;
+        }
+    }
+
+    int start = 0, end = 0, step = 1;
+
+    if (n == 1) {
+        end = (int)args[0].number;
+    } else if (n == 2) {
+        start = (int)args[0].number;
+        end = (int)args[1].number;
+    } else if (n == 3) {
+        start = (int)args[0].number;
+        end = (int)args[1].number;
+        step = (int)args[2].number;
+        if (step == 0) {
+            fprintf(stderr, "range step cannot be zero\n");
+            *err = 1;
+            return EMPTY;
+        }
+    }
+
+    // Calculate number of elements
+    int count = 0;
+    if ((step > 0 && start < end) || (step < 0 && start > end)) {
+        count = abs((end - start + step - (step > 0 ? 1 : -1)) / step);
+    }
+
+    res.list.size = count;
+    res.list.elements = malloc(count * sizeof(Value));
+
+    int idx = 0;
+    if (step > 0) {
+        for (int i = start; i < end; i += step) {
+            Value v;
+            v.type = VAL_NUM;
+            v.number = i;
+            res.list.elements[idx++] = v;
+        }
+    } else {
+        for (int i = start; i > end; i += step) {
+            Value v;
+            v.type = VAL_NUM;
+            v.number = i;
+            res.list.elements[idx++] = v;
+        }
+    }
+
+    return res;
+}
+
 // START OF EVALUATION FUNCTIONS
 
 void eval_program(ASTNode* node, Env *env, int *err)
@@ -412,6 +479,35 @@ void eval_if(ASTNode *node, Env *env, int *err)
     } else {
         eval(node->if_node.else_stmt, env, err);
     }
+}
+
+void eval_for(ASTNode *node, Env *env, int*err)
+{
+    Value iterable = eval(node->for_node.iterator, env, err);
+    if (!is_iterator(iterable) || iterable.type == VAL_MAT) {
+        fprintf(stderr, "Type Error: value is not iterable\n");
+        *err = 1;
+        return;
+    }
+
+    int size;
+    switch (iterable.type) {
+        case VAL_STR:
+            size = strlen(iterable.string);
+            break;
+        case VAL_LIST:
+            size = iterable.list.size;
+            break;
+        default:
+            size = 0;
+            break;
+    }
+
+    for (int i = 0; i < size; i++) {
+        set_var(node->for_node.var, index_value(iterable, i, err), env, err);
+        eval(node->for_node.body, env, err);
+    }
+    free_value(iterable);
 }
 
 Value eval_assign(ASTNode *node, Env *env, int *err)
@@ -1245,6 +1341,7 @@ void assign_to_index(ASTNode* node, Value rhs, Env* env, int* err)
 Value eval(ASTNode* node, Env* env, int* err)
 {
     Value a;
+    char *temp;
     if (!node) return EMPTY;
     switch (node->type)
     {
@@ -1273,9 +1370,20 @@ Value eval(ASTNode* node, Env* env, int* err)
     case AST_IF:
         eval_if(node, env, err);
         return EMPTY;
+    case AST_FOR:
+        eval_for(node, env, err);
+        return EMPTY;
     case AST_PROGRAM:
         for (int i = 0; i < node->program.count; i++) {
-            eval(node->program.nodes[i], env, err);
+            a = eval(node->program.nodes[i], env, err);
+            if (!env->is_file) {
+                temp = string_value(a, err);
+                    if (temp != NULL) {
+                    printf("%s\n", temp);
+                    free(temp);
+                }
+            }
+                
         }
         return EMPTY;
     default:
@@ -1360,7 +1468,7 @@ Value calc_func(const char *name, Value *args, int arg_size, int *err)
     return EMPTY;
 }
 
-void interpret(const char *input, Env *env, int is_file, int *err)
+void interpret(const char *input, Env *env, int *err)
 {
     set_current_env(env);
     int tok_count;
@@ -1390,38 +1498,12 @@ void interpret(const char *input, Env *env, int is_file, int *err)
         return;
     }
 
-    if (is_file) {
-        eval_program(root, env, err);
-        if (*err) {
-            free_tokens(tokens, tok_count);
-            free_ast(root);
-            return;
-        }
-    }
-    else {
-        Value result = eval(root, env, err);
-        if (*err)
-        {
-            free_tokens(tokens, tok_count);
-            free_ast(root);
-            return;
-        }
+    eval(root, env, err);
 
-        if (*err == 0 && tok_count != 1)
-        {
-            if (root->program.nodes[0]->type != AST_ASSIGN)
-            {
-                if (!is_file)
-                {
-                    char* temp_print = string_value(result, err);
-                    if (temp_print != NULL) {
-                        printf("%s\n", temp_print);
-                        free(temp_print);
-                    }
-                }
-                free_value(result);
-            }
-        }
+    if (*err) {
+        free_tokens(tokens, tok_count);
+        free_ast(root);
+        return;
     }
 
     set_current_env(env);
@@ -1433,7 +1515,7 @@ void interpret(const char *input, Env *env, int is_file, int *err)
 void start_repl()
 {
     Variable vars[VAR_MAX];
-    Env env = {vars, 0};
+    Env env = {vars, 0, NOT_FILE};
     char *input;
 
     const char *history_file = ".interpreter_history";
@@ -1449,7 +1531,7 @@ void start_repl()
 
         add_history(input);
 
-        interpret(input, &env, NOT_FILE, &err);
+        interpret(input, &env, &err);
 
         free(input);
     }
@@ -1468,9 +1550,9 @@ void run_file(const char *filename, int *err)
     }
 
     Variable vars[VAR_MAX];
-    Env env = {vars, 0};
+    Env env = {vars, 0, IS_FILE};
 
-    interpret(source, &env, IS_FILE, err);
+    interpret(source, &env, err);
 
     free(source);
 }

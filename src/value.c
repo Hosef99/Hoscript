@@ -190,3 +190,94 @@ int bool_value(Value value)
             return 0;
     }
 }
+
+Value index_value(Value value, int index, int *err)
+{
+    *err = 0;
+
+    switch (value.type)
+    {
+    case VAL_LIST:
+        if (index < 0 || index >= value.list.size)
+        {
+            *err = 1;
+            return EMPTY;
+        }
+        return copy_value(value.list.elements[index], err);
+
+    case VAL_STR:
+        {
+            int len = strlen(value.string);
+            if (index < 0 || index >= len)
+            {
+                *err = 1;
+                return EMPTY;
+            }
+
+            char *ch = malloc(2);
+            ch[0] = value.string[index];
+            ch[1] = '\0';
+
+            Value v;
+            v.type = VAL_STR;
+            v.string = ch;
+            return v;
+        }
+    default:
+        *err = 1;
+        return EMPTY;
+    }
+}
+
+Value slice_value(Value value, int start, int end, int *err)
+{
+    *err = 0;
+
+    if (start < 0) start = 0;
+
+    switch (value.type)
+    {
+    case VAL_LIST:
+        if (end > value.list.size) end = value.list.size;
+        if (start > end)
+        {
+            *err = 1;
+            return EMPTY;
+        }
+
+        int new_size = end - start;
+        Value v;
+        v.type = VAL_LIST;
+        v.list.size = new_size;
+        v.list.elements = malloc(sizeof(Value) * new_size);
+
+        for (int i = 0; i < new_size; i++)
+            v.list.elements[i] = copy_value(value.list.elements[start + i], err);
+
+        return v;
+
+    case VAL_STR:
+        {
+            int len = strlen(value.string);
+            if (end > len) end = len;
+            if (start > end)
+            {
+                *err = 1;
+                return EMPTY;
+            }
+
+            int new_len = end - start;
+            char *substr = malloc(new_len + 1);
+            strncpy(substr, value.string + start, new_len);
+            substr[new_len] = '\0';
+
+            Value v;
+            v.type = VAL_STR;
+            v.string = substr;
+            return v;
+        }
+    default:
+        *err = 1;
+        return EMPTY;
+    }
+}

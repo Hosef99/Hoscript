@@ -13,11 +13,12 @@ This project is a calculator that is capable of doing basic operations.
 ```
 parse   -> stmt (NEWLINE stmt)* EOF
 
-stmt    -> assign | if_stmt | block
+stmt    -> assign | if_stmt | for_stmt | block
 
 block   -> LBRACE (stmt (NEWLINE stmt)*)? RBRACE
 
 if_stmt -> IF LPAREN assign RPAREN stmt (ELSE stmt)?
+for_stmt -> FOR LPAREN IDENT IN expr RPAREN stmt
 
 assign  -> comp (ASSIGN assign)*
 comp    -> expr ((GREATER | LESSER | GEQ | LEQ | EQ) expr)*

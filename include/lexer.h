@@ -29,6 +29,8 @@ typedef enum {
     TOK_NEWLINE,    // \n
     TOK_IF,         // if
     TOK_ELSE,       // else
+    TOK_FOR,        // for
+    TOK_IN,
     TOK_EOF         // end of input
 } TokenType;
 
