@@ -25,6 +25,8 @@ char* type_to_string(TokenType type)
     case TOK_RPAREN:    return "RightParen";
     case TOK_LBRACK:    return "LeftBrack";
     case TOK_RBRACK:    return "RightBrack";
+    case TOK_LBRACE:    return "LeftBrace";
+    case TOK_RBRACE:    return "RightBrace";
     case TOK_IDENT:     return "Identifier";
     case TOK_COMMA:     return "Comma";
     case TOK_SEMI:      return "Semicolon";
@@ -38,6 +40,8 @@ char* type_to_string(TokenType type)
     case TOK_EQUAL:     return "Equal";
     case TOK_NEQUAL:    return "NotEqual";
     case TOK_NEWLINE:   return "Newline";
+    case TOK_IF:        return "If";
+    case TOK_ELSE:      return "Else";
     case TOK_EOF:       return "EOF";
     default:            return "Unknown";
     }
@@ -78,6 +82,8 @@ Token lex(const char* input, int* pos, int* err)
         if (input[*pos] == ')') { (*pos)++; return (Token){TOK_RPAREN, 0, NULL}; }
         if (input[*pos] == '[') { (*pos)++; return (Token){TOK_LBRACK, 0, NULL}; }
         if (input[*pos] == ']') { (*pos)++; return (Token){TOK_RBRACK, 0, NULL}; }
+        if (input[*pos] == '{') { (*pos)++; return (Token){TOK_LBRACE, 0, NULL}; }
+        if (input[*pos] == '}') { (*pos)++; return (Token){TOK_RBRACE, 0, NULL}; }
         if (input[*pos] == ',') { (*pos)++; return (Token){TOK_COMMA, 0, NULL}; }
         if (input[*pos] == ';') { (*pos)++; return (Token){TOK_SEMI, 0, NULL}; }
         if (input[*pos] == ':') { (*pos)++; return (Token){TOK_COLON, 0, NULL}; }
@@ -224,6 +230,8 @@ Token lex_identifier(const char* input, int* pos, int* err)
         buffer[index++] = input[(*pos)++];
     }
     buffer[index] = '\0';
+    if (strcmp(buffer, "if") == 0) return (Token) {TOK_IF, 0, NULL};
+    if (strcmp(buffer, "else") == 0) return (Token) {TOK_ELSE, 0, NULL};
     token.name = strdup(buffer); // NEED TO BE CAREFUL OF MEMORY LEAK
     token.value = 0;
     return token;

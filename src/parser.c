@@ -7,6 +7,9 @@
 #include "parser.h"
 #include "value.h"
 
+ASTNode* parse_stmt(Parser* parser, int* err);
+ASTNode* parse_block(Parser* parser, int* err);
+ASTNode* parse_if(Parser* parser, int* err);
 ASTNode* parse_assign(Parser* parser, int* err); 
 ASTNode* parse_comp(Parser* parser, int* err); 
 ASTNode* parse_expr(Parser* parser, int* err); 
@@ -87,10 +90,10 @@ ASTNode* parse(Parser* parser, int* err)
     program->program.nodes = malloc(program_size*sizeof(ASTNode*));
 
     parser->current_token = peek(parser, 0); // ni
-    ASTNode* assign = parse_assign(parser, err); // take over parse_assign()
+    ASTNode* stmt = parse_stmt(parser, err); // take over parse_assign()
     if (*err) return NULL;
 
-    program->program.nodes[program->program.count++] = assign;
+    program->program.nodes[program->program.count++] = stmt;
 
     while (match(parser, TOK_NEWLINE)) {
         advance(parser);
@@ -99,14 +102,14 @@ ASTNode* parse(Parser* parser, int* err)
             program_size *= 2;
             program->program.nodes = realloc(program->program.nodes, program_size * sizeof(ASTNode*));
         }
-        assign = parse_assign(parser, err);
-        if (assign->type == AST_EOF)
+        stmt = parse_stmt(parser, err);
+        if (stmt->type == AST_EOF)
         {
-            free_ast(assign);
+            free_ast(stmt);
             continue;
         }
         if (*err) return NULL;
-        program->program.nodes[program->program.count++] = assign;
+        program->program.nodes[program->program.count++] = stmt;
     }
 
     if (!match(parser, TOK_EOF)) 
@@ -116,6 +119,81 @@ ASTNode* parse(Parser* parser, int* err)
     }
     return program;
 }
+
+ASTNode* parse_stmt(Parser* parser, int* err)
+{
+    if (match(parser, TOK_IF)) return parse_if(parser, err);
+    if (match(parser, TOK_LBRACE)) return parse_block(parser, err);
+    return parse_assign(parser, err);
+}
+
+ASTNode* parse_if(Parser* parser, int* err)
+{
+    ASTNode* node = malloc(sizeof(ASTNode));
+    node->type = AST_IF;
+    advance(parser); // consume IF
+    advance(parser); // consume LPAREN
+    node->if_node.cond = parse_assign(parser, err);
+    advance(parser); // consume RPAREN
+    while (match(parser, TOK_NEWLINE)) {
+        advance(parser);
+    }
+    node->if_node.if_stmt = parse_stmt(parser, err);
+    if (match(parser, TOK_ELSE)) {
+        advance(parser); // consume ELSE
+        while (match(parser, TOK_NEWLINE)) {
+            advance(parser);
+        }
+        node->if_node.else_stmt = parse_stmt(parser, err);
+    }
+    else {
+        node->if_node.else_stmt = NULL;
+    }
+
+    return node;
+}
+
+ASTNode* parse_block(Parser* parser, int* err){
+    advance(parser);
+    int block_size = 4;
+    ASTNode* block = malloc(sizeof(ASTNode));
+    block->type = AST_PROGRAM;
+    block->program.count = 0;
+    block->program.nodes = malloc(block_size*sizeof(ASTNode*));
+
+    while (match(parser, TOK_NEWLINE)) {
+        advance(parser);
+    }
+
+    parser->current_token = peek(parser, 0); // ni
+    ASTNode* assign = parse_stmt(parser, err); // take over parse_assign()
+    if (*err) return NULL;
+
+    block->program.nodes[block->program.count++] = assign;
+
+    while (match(parser, TOK_NEWLINE)) {
+        advance(parser);
+        if (match(parser, TOK_RBRACE)) {
+            advance(parser);
+            break;
+        }
+        if (block->program.count == block_size)
+        {
+            block_size *= 2;
+            block->program.nodes = realloc(block->program.nodes, block_size * sizeof(ASTNode*));
+        }
+        assign = parse_stmt(parser, err);
+        if (assign->type == AST_EOF)
+        {
+            free_ast(assign);
+            continue;
+        }
+        if (*err) return NULL;
+        block->program.nodes[block->program.count++] = assign;
+    }
+    return block;
+}
+
 // Top-level
 ASTNode* parse_assign(Parser* parser, int* err) 
 {
@@ -424,8 +502,11 @@ int implicit_mul(Parser* parser)
 
 void print_ast(ASTNode* node, int indent)
 {
-    if (!node) return;
     for (int i = 0; i < indent; i++) printf("  ");
+    if (!node) {
+        printf("NULL\n");
+        return;
+    }
 
     switch (node->type) {
         case AST_NUM:
@@ -438,7 +519,7 @@ void print_ast(ASTNode* node, int indent)
             printf("VAR: %s\n", node->name);
             break;
         case AST_BINOP:
-            printf("BINOP: %d\n", node->binary.op);
+            printf("BINOP: %s\n", type_to_string(node->binary.op));
             print_ast(node->binary.left, indent + 1);
             print_ast(node->binary.right, indent + 1);
             break;
@@ -470,6 +551,16 @@ void print_ast(ASTNode* node, int indent)
             printf("LIST (%d elements)\n", node->list.size);
             for (int i = 0; i < node->list.size; i++)
                 print_ast(node->list.elements[i], indent + 1);
+            break;
+        case AST_IF:
+            printf("IF:\n");
+            print_ast(node->if_node.cond, indent + 1);
+            for (int i = 0; i < indent+1; i++) printf("  ");
+            printf("IF_STMT:\n");
+            print_ast(node->if_node.if_stmt, indent + 1);
+            for (int i = 0; i < indent+1; i++) printf("  ");
+            printf("ELSE_STMT:\n");
+            print_ast(node->if_node.else_stmt, indent + 1);
             break;
         case AST_PROGRAM:
             printf("PROGRAM:\n");

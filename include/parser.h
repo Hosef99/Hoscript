@@ -19,6 +19,7 @@ typedef enum
     AST_INDEX,
     AST_SLICE,
     AST_STRING,
+    AST_IF,
     AST_PROGRAM,
     AST_EOF
 } ASTNodeType;
@@ -59,6 +60,12 @@ typedef struct ASTNode
             int size;
             struct ASTNode **elements;
         } list;
+        struct
+        {
+            struct ASTNode *cond;
+            struct ASTNode *if_stmt;
+            struct ASTNode *else_stmt;
+        } if_node;
         struct
         {
             struct ASTNode **nodes;
