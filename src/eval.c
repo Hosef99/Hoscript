@@ -888,6 +888,34 @@ Value eval_nequal(Value left, Value right, int *err)
     }
 }
 
+Value eval_and(Value left, Value right, int *err)
+{
+    Value result;
+    result.type = VAL_BOOL;
+    if (left.type != VAL_BOOL || right.type != VAL_BOOL) 
+    {
+        fprintf(stderr, "Type Error: 'and' requires boolean values\n");
+        *err = 1;
+        return EMPTY;
+    }
+    result.boolean = (left.boolean && right.boolean);
+    return result;
+}
+
+Value eval_or(Value left, Value right, int *err)
+{
+    Value result;
+    result.type = VAL_BOOL;
+    if (left.type != VAL_BOOL || right.type != VAL_BOOL) 
+    {
+        fprintf(stderr, "Type Error: 'and' requires boolean values\n");
+        *err = 1;
+        return EMPTY;
+    }
+    result.boolean = (left.boolean || right.boolean);
+    return result;
+}
+
 Value eval_binop(ASTNode *node, Env *env, int *err)
 {
     Value left = eval(node->binary.left, env, err);
@@ -917,6 +945,10 @@ Value eval_binop(ASTNode *node, Env *env, int *err)
         return eval_equal(left, right, err);
     case TOK_NEQUAL:
         return eval_nequal(left, right, err);
+    case TOK_OR:
+        return eval_or(left, right, err);
+    case TOK_AND:
+        return eval_and(left, right, err);
 
     default:
         return EMPTY;
@@ -965,6 +997,27 @@ Value eval_unop(ASTNode *node, Env *env, int *err)
         else {
             fprintf(stderr, "Type Error: unary minus only supports numbers and matrices\n");
             *err = 1;
+            return EMPTY;
+        }
+    }
+    else if (node->unary.op == TOK_NOT)  
+    {
+        Value res;
+        res.type = VAL_BOOL;
+        res.boolean = 0;
+
+        if (val.type == VAL_BOOL) {
+            res.boolean = !val.boolean;
+            return res;
+        }
+        else if (val.type == VAL_NUM) {
+            res.boolean = !(val.number != 0.0);
+            return res;
+        }
+        else {
+            fprintf(stderr, "Type Error: cannot apply '!' to this value\n");
+            *err = 1;
+            free_value(val);
             return EMPTY;
         }
     }

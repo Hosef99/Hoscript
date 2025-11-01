@@ -139,6 +139,21 @@ Token lex(const char* input, int* pos, int* err)
                 *pos += 2;
                 return (Token){TOK_NEQUAL, 0, NULL}; // !=
             }
+            else
+            {
+                (*pos)++;
+                return (Token){TOK_NOT, 0, NULL}; // !
+            }
+        }
+        if (input[*pos] == '|' && input[*pos + 1] == '|')
+        {
+            *pos += 2;
+            return (Token){TOK_OR, 0, NULL}; // ||
+        }
+        if (input[*pos] == '&' && input[*pos + 1] == '&')
+        {
+            *pos += 2;
+            return (Token){TOK_AND, 0, NULL}; // &&
         }
         if (input[*pos] == '=') { (*pos)++; return (Token){TOK_ASSIGN, 0, NULL}; }
         if (isalpha(input[*pos]) || input[*pos] == '_') return lex_identifier(input, pos, err);

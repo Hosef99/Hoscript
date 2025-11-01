@@ -26,6 +26,9 @@ typedef enum {
     TOK_GAND,       // >=
     TOK_EQUAL,      // ==
     TOK_NEQUAL,     // !=
+    TOK_NOT,        // !
+    TOK_OR,         // ||
+    TOK_AND,        // &&
     TOK_NEWLINE,    // \n
     TOK_IF,         // if
     TOK_ELSE,       // else
